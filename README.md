@@ -42,7 +42,7 @@ Common options:
 - Re-encode mode is slower but more accurate.
 - If fast mode fails due to format mismatch, rerun with `--reencode` or choose a matching `--format`.
 - If the requested quality is unavailable, the CLI prints the available heights for the video.
-- Default output naming: `clip_<start>_<end>_<timestamp>.mp4`.
+- Default output naming: `<channel>_<title>_<start>_<end>_<timestamp>.mp4` (sanitized ASCII).
 
 ## Roadmap
 - Add optional `--download-sections` support with timestamp offsets.

@@ -27,7 +27,7 @@ Optional flags:
 ### Outputs
 One or more MP4 files saved to disk:
 
-- Default naming: `clip_<start>_<end>_<timestamp>.mp4`.
+- Default naming: `<channel>_<title>_<start>_<end>_<timestamp>.mp4`.
 - If multiple clips: one file per range.
 
 ### Core User Stories

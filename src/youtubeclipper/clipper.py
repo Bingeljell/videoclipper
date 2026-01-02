@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 import json
+import re
 import shutil
 import subprocess
 import tempfile
@@ -113,8 +114,7 @@ def _inspect_formats(url: str) -> dict:
         raise ClipperError("Failed to parse format data from yt-dlp.") from exc
 
 
-def _available_heights(url: str) -> tuple[list[int], list[int]]:
-    data = _inspect_formats(url)
+def _available_heights(data: dict) -> tuple[list[int], list[int]]:
     formats = data.get("formats", [])
     h264_mp4: set[int] = set()
     all_video: set[int] = set()
@@ -129,6 +129,24 @@ def _available_heights(url: str) -> tuple[list[int], list[int]]:
         if str(vcodec).startswith("avc1"):
             h264_mp4.add(height)
     return sorted(h264_mp4), sorted(all_video)
+
+
+def _slugify(value: str, max_length: int) -> str:
+    ascii_value = value.encode("ascii", "ignore").decode()
+    cleaned = re.sub(r"[^A-Za-z0-9]+", "_", ascii_value).strip("_")
+    if len(cleaned) > max_length:
+        cleaned = cleaned[:max_length].rstrip("_")
+    return cleaned
+
+
+def _clip_base_name(data: dict) -> str:
+    channel = data.get("channel") or data.get("uploader") or ""
+    title = data.get("title") or ""
+    video_id = data.get("id") or ""
+    channel_slug = _slugify(channel, 40)
+    title_slug = _slugify(title, 80) or _slugify(video_id, 40)
+    parts = [part for part in (channel_slug, title_slug) if part]
+    return "_".join(parts) or "clip"
 
 
 def _format_selector(height: int, reencode: bool) -> tuple[str, str | None]:
@@ -207,8 +225,10 @@ def clip_url(
     outputs: list[Path] = []
     with tempfile.TemporaryDirectory(prefix="youtubeclipper_", dir=outdir) as tmp:
         workdir = Path(tmp)
+        data = _inspect_formats(url)
         run_stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        h264_mp4, all_heights = _available_heights(url)
+        h264_mp4, all_heights = _available_heights(data)
+        base_name = _clip_base_name(data)
         available = all_heights if reencode else h264_mp4
         if quality_height not in available:
             if reencode:
@@ -235,7 +255,9 @@ def clip_url(
                 f"output '{output_format}'. Use --reencode or choose a matching --format."
             )
         for start, end in ranges:
-            output_path = outdir / f"clip_{start}_{end}_{run_stamp}.{output_format}"
+            output_path = (
+                outdir / f"{base_name}_{start}_{end}_{run_stamp}.{output_format}"
+            )
             _run_ffmpeg(source, start, end, output_path, reencode)
             outputs.append(output_path)
 
