@@ -5,7 +5,7 @@ Local CLI tool for downloading a YouTube video and generating timestamped clips.
 ## Requirements
 - Python 3.11+
 - `ffmpeg` available on PATH
-- `yt-dlp` available on PATH
+- `yt-dlp` available on PATH 
 
 ## Setup
 
@@ -21,6 +21,7 @@ Single clip:
 
 ```bash
 youtubeclipper <url> <start> <end>
+youtubeclipper https://www.youtube.com/watch?v=P8k-bSEhEDo 10 15
 ```
 
 Multiple clips:
@@ -32,9 +33,16 @@ youtubeclipper <url> --clips "10-30,120-150" --outdir ./clips
 Common options:
 - `--outdir`: output directory (default: `./clips`).
 - `--reencode`: frame-accurate clips (slower).
+- `--480p` / `--720p` / `--1080p` / `--360p`: choose source quality (default: `--480p`).
+- `--height 640`: choose an exact source height in pixels.
 - `--format`: output container extension (default: `mp4`).
 
 ## Notes
 - Fast mode uses stream copy and may cut on keyframes.
 - Re-encode mode is slower but more accurate.
 - If fast mode fails due to format mismatch, rerun with `--reencode` or choose a matching `--format`.
+- If the requested quality is unavailable, the CLI prints the available heights for the video.
+
+## Roadmap
+- Add optional `--download-sections` support with timestamp offsets.
+- Accept `mm:ss` / `hh:mm:ss` timestamps.

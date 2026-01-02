@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
 import shutil
 import subprocess
 import tempfile
@@ -62,7 +63,12 @@ def _run_command(cmd: Iterable[str], error_message: str) -> None:
         raise ClipperError(error_message) from exc
 
 
-def _download_source(url: str, workdir: Path, format_selector: str) -> Path:
+def _download_source(
+    url: str,
+    workdir: Path,
+    format_selector: str,
+    merge_output_format: str | None,
+) -> Path:
     output_template = workdir / "source.%(ext)s"
     cmd = [
         "yt-dlp",
@@ -70,14 +76,69 @@ def _download_source(url: str, workdir: Path, format_selector: str) -> Path:
         format_selector,
         "-o",
         str(output_template),
-        url,
+        "--no-playlist",
     ]
+    if merge_output_format:
+        cmd.extend(["--merge-output-format", merge_output_format])
+    cmd.append(url)
     _run_command(cmd, "Failed to download video with yt-dlp.")
 
     candidates = sorted(workdir.glob("source.*"))
     if not candidates:
         raise ClipperError("Download succeeded but no source file was found.")
     return candidates[0]
+
+
+def _inspect_formats(url: str) -> dict:
+    cmd = [
+        "yt-dlp",
+        "-J",
+        "--no-warnings",
+        "--no-playlist",
+        url,
+    ]
+    try:
+        result = subprocess.run(
+            cmd,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        raise ClipperError("Failed to inspect available formats with yt-dlp.") from exc
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise ClipperError("Failed to parse format data from yt-dlp.") from exc
+
+
+def _available_heights(url: str) -> tuple[list[int], list[int]]:
+    data = _inspect_formats(url)
+    formats = data.get("formats", [])
+    h264_mp4: set[int] = set()
+    all_video: set[int] = set()
+    for fmt in formats:
+        height = fmt.get("height")
+        vcodec = fmt.get("vcodec")
+        if not height or vcodec in (None, "none"):
+            continue
+        all_video.add(height)
+        if fmt.get("ext") != "mp4":
+            continue
+        if str(vcodec).startswith("avc1"):
+            h264_mp4.add(height)
+    return sorted(h264_mp4), sorted(all_video)
+
+
+def _format_selector(height: int, reencode: bool) -> tuple[str, str | None]:
+    if reencode:
+        selector = f"bv*[height={height}]+ba/b[height={height}]"
+        return selector, None
+    selector = (
+        "bv*[vcodec^=avc1][ext=mp4][height={height}]"
+        "+ba[acodec^=mp4a]/b[ext=mp4][height={height}]"
+    ).format(height=height)
+    return selector, "mp4"
 
 
 def _run_ffmpeg(
@@ -134,16 +195,38 @@ def clip_url(
     outdir: Path,
     reencode: bool,
     output_format: str,
+    quality_height: int,
 ) -> list[Path]:
     _ensure_dependencies()
+    if quality_height <= 0:
+        raise ClipperError("Quality height must be a positive integer.")
 
     outdir.mkdir(parents=True, exist_ok=True)
 
     outputs: list[Path] = []
     with tempfile.TemporaryDirectory(prefix="youtubeclipper_", dir=outdir) as tmp:
         workdir = Path(tmp)
-        source_format = "best" if reencode else output_format
-        source = _download_source(url, workdir, source_format)
+        h264_mp4, all_heights = _available_heights(url)
+        available = all_heights if reencode else h264_mp4
+        if quality_height not in available:
+            if reencode:
+                available_text = ", ".join(str(h) for h in available) or "none"
+                raise ClipperError(
+                    f"Requested {quality_height}p is not available. "
+                    f"Available video heights: {available_text}. "
+                    "Use --height to pick one of the available heights."
+                )
+            available_text = ", ".join(str(h) for h in available) or "none"
+            other_text = ", ".join(str(h) for h in all_heights) or "none"
+            raise ClipperError(
+                f"Requested {quality_height}p is not available for fast clipping. "
+                f"Available H.264 MP4 heights: {available_text}. "
+                f"Other video heights: {other_text}. "
+                "Use --height to choose an available H.264 MP4 height, or "
+                "try --reencode for non-H.264 sources."
+            )
+        format_selector, merge_format = _format_selector(quality_height, reencode)
+        source = _download_source(url, workdir, format_selector, merge_format)
         if not reencode and source.suffix.lstrip(".") != output_format:
             raise ClipperError(
                 f"Source format '{source.suffix.lstrip('.')}' does not match "
