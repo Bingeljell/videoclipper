@@ -7,3 +7,4 @@ dist/
 *.egg-info/
 clips/
 *.mp4
+fullvideos/

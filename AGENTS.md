@@ -5,10 +5,12 @@ This repository contains the MVP product spec and an initial Python CLI implemen
 
 ## Project Structure & Module Organization
 - `spec.md`: MVP requirements, CLI UX, and architecture notes.
+- `docs/ROADMAP.md`: planned enhancements and future work.
 - `src/youtubeclipper/`: CLI entry point and core clipping logic.
 - `tests/`: pytest coverage for parsing and validation.
 - `pyproject.toml`: packaging metadata and test configuration.
 - `README.md`: setup and usage instructions.
+- `LICENSE`: open source license.
 
 ## Build, Test, and Development Commands
 Common commands for local development:

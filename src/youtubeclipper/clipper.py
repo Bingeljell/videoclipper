@@ -51,11 +51,14 @@ def _validate_range(start: int, end: int) -> None:
         raise ClipperError("Clip end must be greater than start.")
 
 
-def _ensure_dependencies() -> None:
-    missing = [name for name in ("ffmpeg", "yt-dlp") if shutil.which(name) is None]
-    if missing:
-        missing_list = ", ".join(missing)
-        raise ClipperError(f"Missing dependencies on PATH: {missing_list}.")
+def _ensure_ffmpeg() -> None:
+    if shutil.which("ffmpeg") is None:
+        raise ClipperError("Missing dependency on PATH: ffmpeg.")
+
+
+def _ensure_yt_dlp() -> None:
+    if shutil.which("yt-dlp") is None:
+        raise ClipperError("Missing dependency on PATH: yt-dlp.")
 
 
 def _run_command(cmd: Iterable[str], error_message: str) -> None:
@@ -67,11 +70,10 @@ def _run_command(cmd: Iterable[str], error_message: str) -> None:
 
 def _download_source(
     url: str,
-    workdir: Path,
+    output_template: Path,
     format_selector: str,
     merge_output_format: str | None,
 ) -> Path:
-    output_template = workdir / "source.%(ext)s"
     cmd = [
         "yt-dlp",
         "-f",
@@ -85,7 +87,8 @@ def _download_source(
     cmd.append(url)
     _run_command(cmd, "Failed to download video with yt-dlp.")
 
-    candidates = sorted(workdir.glob("source.*"))
+    pattern = output_template.name.replace("%(ext)s", "*")
+    candidates = sorted(output_template.parent.glob(pattern))
     if not candidates:
         raise ClipperError("Download succeeded but no source file was found.")
     return candidates[0]
@@ -147,6 +150,8 @@ def _clip_base_name(data: dict) -> str:
     title_slug = _slugify(title, 80) or _slugify(video_id, 40)
     parts = [part for part in (channel_slug, title_slug) if part]
     return "_".join(parts) or "clip"
+
+
 
 
 def _format_selector(height: int, reencode: bool) -> tuple[str, str | None]:
@@ -216,7 +221,8 @@ def clip_url(
     output_format: str,
     quality_height: int,
 ) -> list[Path]:
-    _ensure_dependencies()
+    _ensure_ffmpeg()
+    _ensure_yt_dlp()
     if quality_height <= 0:
         raise ClipperError("Quality height must be a positive integer.")
 
@@ -248,7 +254,8 @@ def clip_url(
                 "try --reencode for non-H.264 sources."
             )
         format_selector, merge_format = _format_selector(quality_height, reencode)
-        source = _download_source(url, workdir, format_selector, merge_format)
+        output_template = workdir / "source.%(ext)s"
+        source = _download_source(url, output_template, format_selector, merge_format)
         if not reencode and source.suffix.lstrip(".") != output_format:
             raise ClipperError(
                 f"Source format '{source.suffix.lstrip('.')}' does not match "
@@ -260,5 +267,73 @@ def clip_url(
             )
             _run_ffmpeg(source, start, end, output_path, reencode)
             outputs.append(output_path)
+
+    return outputs
+
+
+def download_url(
+    url: str,
+    outdir: Path,
+    reencode: bool,
+    quality_height: int,
+) -> Path:
+    _ensure_yt_dlp()
+    if quality_height <= 0:
+        raise ClipperError("Quality height must be a positive integer.")
+
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    data = _inspect_formats(url)
+    h264_mp4, all_heights = _available_heights(data)
+    available = all_heights if reencode else h264_mp4
+    if quality_height not in available:
+        if reencode:
+            available_text = ", ".join(str(h) for h in available) or "none"
+            raise ClipperError(
+                f"Requested {quality_height}p is not available. "
+                f"Available video heights: {available_text}. "
+                "Use --height to pick one of the available heights."
+            )
+        available_text = ", ".join(str(h) for h in available) or "none"
+        other_text = ", ".join(str(h) for h in all_heights) or "none"
+        raise ClipperError(
+            f"Requested {quality_height}p is not available for fast download. "
+            f"Available H.264 MP4 heights: {available_text}. "
+            f"Other video heights: {other_text}. "
+            "Use --height to choose an available H.264 MP4 height, or "
+            "try --reencode for non-H.264 sources."
+        )
+
+    format_selector, merge_format = _format_selector(quality_height, reencode)
+    base_name = _clip_base_name(data)
+    output_template = outdir / f"{base_name}.%(ext)s"
+    if list(outdir.glob(f"{base_name}.*")):
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        output_template = outdir / f"{base_name}_{stamp}.%(ext)s"
+    return _download_source(url, output_template, format_selector, merge_format)
+
+
+def clip_source(
+    source: Path,
+    ranges: list[tuple[int, int]],
+    outdir: Path,
+    reencode: bool,
+    output_format: str,
+) -> list[Path]:
+    _ensure_ffmpeg()
+    if not source.exists():
+        raise ClipperError(f"Source file not found: {source}")
+    if not source.is_file():
+        raise ClipperError(f"Source path is not a file: {source}")
+
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    base_name = _slugify(source.stem, 80) or "clip"
+    run_stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    outputs: list[Path] = []
+    for start, end in ranges:
+        output_path = outdir / f"{base_name}_{start}_{end}_{run_stamp}.{output_format}"
+        _run_ffmpeg(source, start, end, output_path, reencode)
+        outputs.append(output_path)
 
     return outputs

@@ -53,6 +53,13 @@ Common options:
 - `--reencode` (frame accurate)
 - `--format mp4` (default mp4)
 
+Optional two-step flow:
+
+```bash
+youtubeclipper download <url> --720p --outdir ./fullvideos
+youtubeclipper clip ./fullvideos/<channel>_<title>.mp4 --clips "10-30,120-150"
+```
+
 ### Processing Rules
 Validate:
 - URL format.
