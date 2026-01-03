@@ -1,12 +1,12 @@
 # Repository Guidelines
 
 ## Project Overview
-This repository contains the MVP product spec and an initial Python CLI implementation for a local YouTube clipping tool. Use `spec.md` as the source of truth for scope, flags, and behavior.
+This repository contains the MVP product spec and an initial Python CLI implementation for a local video clipping tool. Use `spec.md` as the source of truth for scope, flags, and behavior.
 
 ## Project Structure & Module Organization
 - `spec.md`: MVP requirements, CLI UX, and architecture notes.
 - `docs/ROADMAP.md`: planned enhancements and future work.
-- `src/youtubeclipper/`: CLI entry point and core clipping logic.
+- `src/videoclipper/`: CLI entry point and core clipping logic.
 - `tests/`: pytest coverage for parsing and validation.
 - `pyproject.toml`: packaging metadata and test configuration.
 - `README.md`: setup and usage instructions.
@@ -20,14 +20,14 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -e .
 
-youtubeclipper <url> <start> <end>
-youtubeclipper <url> --clips "10-30,120-150" --outdir ./clips
+videoclipper <url> <start> <end>
+videoclipper <url> --clips "10-30,120-150" --outdir ./clips
 
 pytest
 ```
 
 - `pip install -e .`: install the CLI locally for development.
-- `youtubeclipper ...`: run the CLI with single or multiple clips.
+- `videoclipper ...`: run the CLI with single or multiple clips.
 - `pytest`: run parsing and validation tests.
 
 ## Coding Style & Naming Conventions

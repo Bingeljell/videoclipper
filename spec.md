@@ -1,18 +1,18 @@
-# YouTube Clipper App — MVP Spec Sheet
+# Video Clipper App — MVP Spec Sheet
 
 ## 1) Goal
 Build a simple tool that:
 
-- Takes a YouTube URL.
+- Takes a video URL (supported by `yt-dlp`).
 - Takes one or more clip ranges (start/end timestamps).
-- Outputs MP4 clips locally.
+- Outputs MP4 clips locally (shorts).
 
 MVP runs in CLI. Optional next step: local web UI.
 
 ## 2) MVP Feature Spec
 
 ### Inputs
-- YouTube URL.
+- Video URL (supported by `yt-dlp`).
 - Clip ranges.
 
 Primary format: seconds (`120 150`).
@@ -31,7 +31,7 @@ One or more MP4 files saved to disk:
 - If multiple clips: one file per range.
 
 ### Core User Stories
-- As a user, I can generate a clip from a YouTube video by providing url + start + end.
+- As a user, I can generate a clip from a video URL by providing url + start + end.
 - As a user, I can generate multiple clips in one run from the same URL.
 - As a user, I can choose between fast clipping and frame-accurate clipping.
 
@@ -39,13 +39,13 @@ One or more MP4 files saved to disk:
 Command pattern (example):
 
 ```bash
-youtubeclipper <url> <start> <end>
+videoclipper <url> <start> <end>
 ```
 
 Multi-clip (example):
 
 ```bash
-youtubeclipper <url> --clips "10-30,120-150,300-360"
+videoclipper <url> --clips "10-30,120-150,300-360"
 ```
 
 Common options:
@@ -56,8 +56,8 @@ Common options:
 Optional two-step flow:
 
 ```bash
-youtubeclipper download <url> --720p --outdir ./fullvideos
-youtubeclipper clip ./fullvideos/<channel>_<title>.mp4 --clips "10-30,120-150"
+videoclipper download <url> --720p --outdir ./fullvideos
+videoclipper clip ./fullvideos/<channel>_<title>.mp4 --clips "10-30,120-150"
 ```
 
 ### Processing Rules
@@ -104,7 +104,7 @@ Simple page with:
 
 ### MVP (CLI)
 - Language: Python 3.11+.
-- YouTube download: `yt-dlp` (CLI tool or Python wrapper).
+- Video download: `yt-dlp` (CLI tool or Python wrapper).
 - Video cutting/encoding: `ffmpeg`.
 - CLI framework: `argparse` (minimal) or `typer` (nicer UX, optional).
 - Packaging: pipx installable package, or simple script.
@@ -133,13 +133,13 @@ Simple page with:
 ## 6) Security & Compliance Notes (Practical)
 Treat this as a personal/local tool unless you’re ready to handle:
 - Rights management.
-- YouTube ToS implications of downloading.
+- Source platform terms and licensing implications of downloading.
 - Don’t store or transmit URLs/logs unless explicitly needed.
 
 If you ever productize: add safeguards (allowed domains, rate limits, etc.).
 
 ## 7) Acceptance Criteria (MVP Done)
-- CLI can generate a clip from a provided YouTube URL + start/end.
+- CLI can generate a clip from a provided video URL + start/end.
 - Can generate multiple clips in one command.
 - Produces MP4 files playable in standard players.
 - Clear errors for invalid ranges/dependency issues.

@@ -1,6 +1,6 @@
-# YouTube Clipper
+# Video Shorts Clipper
 
-Local CLI tool for downloading a YouTube video and generating timestamped clips.
+Local CLI tool for downloading a video and generating short, timestamped clips from content you own or have rights to use.
 
 ## Requirements
 - Python 3.11+
@@ -20,21 +20,21 @@ pip install -e .
 Single clip:
 
 ```bash
-youtubeclipper <url> <start> <end>
-youtubeclipper https://www.youtube.com/watch?v=P8k-bSEhEDo 10 15
+videoclipper <url> <start> <end>
+videoclipper https://example.com/video 10 15
 ```
 
 Multiple clips:
 
 ```bash
-youtubeclipper <url> --clips "10-30,120-150" --outdir ./clips
+videoclipper <url> --clips "10-30,120-150" --outdir ./clips
 ```
 
 Download once, clip many:
 
 ```bash
-youtubeclipper download <url> --720p --outdir ./fullvideos
-youtubeclipper clip ./fullvideos/<channel>_<title>.mp4 --clips "10-30,120-150"
+videoclipper download <url> --720p --outdir ./fullvideos
+videoclipper clip ./fullvideos/<channel>_<title>.mp4 --clips "10-30,120-150"
 ```
 
 Common options:
@@ -51,6 +51,7 @@ Common options:
 - If the requested quality is unavailable, the CLI prints the available heights for the video.
 - Default output naming: `<channel>_<title>_<start>_<end>_<timestamp>.mp4` (sanitized ASCII).
 - Downloads default to `./fullvideos` with `<channel>_<title>.<ext>` (timestamp is appended if the name exists).
+- Use only with content you own or have permission to download.
 
 ## Roadmap
 See `docs/ROADMAP.md`.

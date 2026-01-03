@@ -229,7 +229,7 @@ def clip_url(
     outdir.mkdir(parents=True, exist_ok=True)
 
     outputs: list[Path] = []
-    with tempfile.TemporaryDirectory(prefix="youtubeclipper_", dir=outdir) as tmp:
+    with tempfile.TemporaryDirectory(prefix="videoclipper_", dir=outdir) as tmp:
         workdir = Path(tmp)
         data = _inspect_formats(url)
         run_stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")

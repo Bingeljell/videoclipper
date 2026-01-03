@@ -1,6 +1,6 @@
 import pytest
 
-from youtubeclipper.clipper import ClipperError, parse_clip_ranges, parse_time
+from videoclipper.clipper import ClipperError, parse_clip_ranges, parse_time
 
 
 def test_parse_time_seconds():

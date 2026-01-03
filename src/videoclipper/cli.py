@@ -55,10 +55,10 @@ def _add_quality_flags(parser: argparse.ArgumentParser) -> None:
 
 def _build_clip_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="youtubeclipper",
-        description="Download a YouTube video and generate one or more clips.",
+        prog="videoclipper",
+        description="Download a video from a supported URL and generate clips.",
     )
-    parser.add_argument("url", help="YouTube video URL")
+    parser.add_argument("url", help="Video URL")
     parser.add_argument("start", nargs="?", help="Clip start time in seconds")
     parser.add_argument("end", nargs="?", help="Clip end time in seconds")
     parser.add_argument(
@@ -86,7 +86,7 @@ def _build_clip_parser() -> argparse.ArgumentParser:
 
 def _build_local_clip_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="youtubeclipper clip",
+        prog="videoclipper clip",
         description="Generate clips from a local video file.",
     )
     parser.add_argument("source", help="Path to a local video file")
@@ -116,10 +116,10 @@ def _build_local_clip_parser() -> argparse.ArgumentParser:
 
 def _build_download_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="youtubeclipper download",
-        description="Download a YouTube video for reuse in multiple clips.",
+        prog="videoclipper download",
+        description="Download a video from a supported URL for reuse.",
     )
-    parser.add_argument("url", help="YouTube video URL")
+    parser.add_argument("url", help="Video URL")
     parser.add_argument(
         "--outdir",
         default="fullvideos",
