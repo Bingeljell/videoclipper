@@ -55,8 +55,5 @@ Common options:
 ## Roadmap
 See `docs/ROADMAP.md`.
 
-## Credits
-Created by Nikhil. GitHub: https://github.com/Bingeljell, X: https://x.com/Bingeljell.
-
 ## License
 MIT. See `LICENSE`.
