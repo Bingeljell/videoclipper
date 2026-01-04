@@ -14,17 +14,50 @@ class ClipperError(Exception):
     pass
 
 
-def parse_time(value: str) -> int:
-    value = value.strip()
-    if ":" in value:
-        raise ClipperError("Timestamps must be whole seconds (e.g., 120).")
+def _parse_time_unit(value: str) -> int:
     try:
-        seconds = int(value)
+        unit = int(value)
     except ValueError as exc:
-        raise ClipperError("Timestamps must be whole seconds (e.g., 120).") from exc
-    if seconds < 0:
+        raise ClipperError(
+            "Timestamps must be seconds (e.g., 120) or mm:ss or hh:mm:ss."
+        ) from exc
+    if unit < 0:
         raise ClipperError("Timestamps must be non-negative.")
-    return seconds
+    return unit
+
+
+def parse_time(value: str) -> int:
+    raw = value.strip()
+    if not raw:
+        raise ClipperError(
+            "Timestamps must be seconds (e.g., 120) or mm:ss or hh:mm:ss."
+        )
+
+    parts = [part.strip() for part in raw.split(":")]
+    if any(part == "" for part in parts):
+        raise ClipperError(
+            "Timestamps must be seconds (e.g., 120) or mm:ss or hh:mm:ss."
+        )
+
+    if len(parts) == 1:
+        return _parse_time_unit(parts[0])
+    if len(parts) == 2:
+        minutes = _parse_time_unit(parts[0])
+        seconds = _parse_time_unit(parts[1])
+        if seconds >= 60:
+            raise ClipperError("Seconds must be between 0 and 59.")
+        return minutes * 60 + seconds
+    if len(parts) == 3:
+        hours = _parse_time_unit(parts[0])
+        minutes = _parse_time_unit(parts[1])
+        seconds = _parse_time_unit(parts[2])
+        if minutes >= 60:
+            raise ClipperError("Minutes must be between 0 and 59.")
+        if seconds >= 60:
+            raise ClipperError("Seconds must be between 0 and 59.")
+        return hours * 3600 + minutes * 60 + seconds
+
+    raise ClipperError("Timestamps must be seconds (e.g., 120) or mm:ss or hh:mm:ss.")
 
 
 def parse_clip_ranges(ranges: str) -> list[tuple[int, int]]:
@@ -134,6 +167,18 @@ def _available_heights(data: dict) -> tuple[list[int], list[int]]:
     return sorted(h264_mp4), sorted(all_video)
 
 
+def _format_duration(seconds: int | None) -> str:
+    if seconds is None:
+        return "unknown"
+    if seconds < 0:
+        return "unknown"
+    minutes, secs = divmod(seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours:
+        return f"{hours}:{minutes:02d}:{secs:02d}"
+    return f"{minutes}:{secs:02d}"
+
+
 def _slugify(value: str, max_length: int) -> str:
     ascii_value = value.encode("ascii", "ignore").decode()
     cleaned = re.sub(r"[^A-Za-z0-9]+", "_", ascii_value).strip("_")
@@ -150,6 +195,22 @@ def _clip_base_name(data: dict) -> str:
     title_slug = _slugify(title, 80) or _slugify(video_id, 40)
     parts = [part for part in (channel_slug, title_slug) if part]
     return "_".join(parts) or "clip"
+
+
+def get_info(url: str) -> dict:
+    _ensure_yt_dlp()
+    data = _inspect_formats(url)
+    h264_mp4, all_heights = _available_heights(data)
+    duration = data.get("duration")
+    return {
+        "title": data.get("title") or "",
+        "channel": data.get("channel") or data.get("uploader") or "",
+        "video_id": data.get("id") or "",
+        "duration_seconds": duration,
+        "duration_text": _format_duration(duration),
+        "h264_heights": h264_mp4,
+        "all_heights": all_heights,
+    }
 
 
 

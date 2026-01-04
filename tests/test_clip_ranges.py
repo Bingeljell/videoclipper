@@ -12,9 +12,21 @@ def test_parse_time_rejects_non_integer():
         parse_time("1.5")
 
 
-def test_parse_time_rejects_mm_ss():
+def test_parse_time_mm_ss():
+    assert parse_time("01:30") == 90
+
+
+def test_parse_time_hh_mm_ss():
+    assert parse_time("1:02:03") == 3723
+
+
+def test_parse_time_rejects_invalid_components():
     with pytest.raises(ClipperError):
-        parse_time("01:30")
+        parse_time("1:60")
+    with pytest.raises(ClipperError):
+        parse_time("1:02:60")
+    with pytest.raises(ClipperError):
+        parse_time("1:2:3:4")
 
 
 def test_parse_clip_ranges_multiple():

@@ -22,12 +22,19 @@ Single clip:
 ```bash
 videoclipper <url> <start> <end>
 videoclipper https://example.com/video 10 15
+videoclipper https://example.com/video 1:30 2:10
+```
+
+Get video metadata and available qualities:
+
+```bash
+videoclipper <url> --getinfo
 ```
 
 Multiple clips:
 
 ```bash
-videoclipper <url> --clips "10-30,120-150" --outdir ./clips
+videoclipper <url> --clips "10-30,1:20-1:45,00:10:00-00:10:30" --outdir ./clips
 ```
 
 Download once, clip many:
@@ -43,6 +50,7 @@ Common options:
 - `--480p` / `--720p` / `--1080p` / `--360p`: choose source quality (default: `--480p`).
 - `--height 640`: choose an exact source height in pixels.
 - `--format`: output container extension (default: `mp4`).
+- `--getinfo`: print metadata and available heights without downloading.
 
 ## Notes
 - Fast mode uses stream copy and may cut on keyframes.
@@ -52,6 +60,7 @@ Common options:
 - Default output naming: `<channel>_<title>_<start>_<end>_<timestamp>.mp4` (sanitized ASCII).
 - Downloads default to `./fullvideos` with `<channel>_<title>.<ext>` (timestamp is appended if the name exists).
 - Use only with content you own or have permission to download.
+- Timestamps accept seconds, `mm:ss`, or `hh:mm:ss`.
 
 ## Roadmap
 See `docs/ROADMAP.md`.

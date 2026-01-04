@@ -9,6 +9,7 @@ from .clipper import (
     clip_source,
     clip_url,
     download_url,
+    get_info,
     parse_clip_ranges,
     parse_time,
 )
@@ -64,6 +65,11 @@ def _build_clip_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--clips",
         help='Comma-separated ranges like "10-30,120-150" (overrides start/end).',
+    )
+    parser.add_argument(
+        "--getinfo",
+        action="store_true",
+        help="Print metadata and available qualities without downloading.",
     )
     parser.add_argument(
         "--outdir",
@@ -193,6 +199,35 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
+        if args.getinfo:
+            if args.start or args.end or args.clips:
+                raise ClipperError("Use --getinfo without start/end or --clips.")
+            info = get_info(args.url)
+            title = info["title"] or "unknown"
+            channel = info["channel"] or "unknown"
+            video_id = info["video_id"] or "unknown"
+            duration_text = info["duration_text"]
+            duration_seconds = info["duration_seconds"]
+            h264_heights = info["h264_heights"]
+            all_heights = info["all_heights"]
+
+            print(f"Title: {title}")
+            print(f"Channel: {channel}")
+            print(f"Video ID: {video_id}")
+            if duration_seconds is None:
+                print("Duration: unknown")
+            else:
+                print(f"Duration: {duration_text} ({duration_seconds}s)")
+            print(
+                "Available heights (H.264 MP4): "
+                + (", ".join(str(h) for h in h264_heights) or "none")
+            )
+            print(
+                "All video heights: "
+                + (", ".join(str(h) for h in all_heights) or "none")
+            )
+            return 0
+
         ranges = _resolve_ranges(args)
         output_format = args.format.strip().lstrip(".")
         if not output_format:

@@ -15,9 +15,7 @@ MVP runs in CLI. Optional next step: local web UI.
 - Video URL (supported by `yt-dlp`).
 - Clip ranges.
 
-Primary format: seconds (`120 150`).
-
-Optional (later): accept `mm:ss` / `hh:mm:ss`.
+Accepted formats: seconds (`120 150`), `mm:ss`, or `hh:mm:ss`.
 
 Optional flags:
 - Output directory.
@@ -52,6 +50,7 @@ Common options:
 - `--outdir ./clips`
 - `--reencode` (frame accurate)
 - `--format mp4` (default mp4)
+- `--getinfo` (print metadata and available heights)
 
 Optional two-step flow:
 
