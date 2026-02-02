@@ -33,6 +33,7 @@ Then open http://127.0.0.1:8000 in your browser. The web UI provides:
 - Output directory and filename customization
 - Download audio only (MP3, WAV, AAC, OGG, FLAC)
 - **Audio Overlay**: Upload a video and audio file to combine them with automatic fade-out
+- **De-noise**: Upload a video to reduce background noise in the audio
 
 Options:
 ```bash
@@ -80,6 +81,13 @@ Overlay audio onto video:
 ```bash
 videoclipper overlay video.mp4 audio.mp3
 videoclipper overlay video.mp4 audio.mp3 --fade 5 --outdir ./output
+```
+
+De-noise video audio (reduce background noise):
+
+```bash
+videoclipper denoise video.mp4
+videoclipper denoise video.mp4 --strength 0.7 --outdir ./output
 ```
 
 Common options:

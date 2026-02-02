@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from .clipper import (
     ClipperError,
     clip_source,
+    denoise_video,
     download_audio,
     download_url,
     get_info,
@@ -144,6 +145,36 @@ async def api_overlay(
                 audio_path=audio_path,
                 outdir=outdir,
                 fade_duration=fade,
+            )
+            return {"success": True, "path": str(output)}
+        except ClipperError as exc:
+            return {"success": False, "error": str(exc)}
+
+
+@app.post("/api/denoise")
+async def api_denoise(
+    video: UploadFile = File(...),
+    strength: float = 0.5,
+) -> dict:
+    """Reduce background noise in video audio."""
+    import tempfile
+    
+    outdir = Path("denoised")
+    outdir.mkdir(parents=True, exist_ok=True)
+    
+    # Save uploaded file to temp directory
+    with tempfile.TemporaryDirectory(prefix="videoclipper_denoise_", dir=outdir) as tmp:
+        workdir = Path(tmp)
+        video_path = workdir / video.filename
+        
+        with open(video_path, "wb") as f:
+            f.write(await video.read())
+        
+        try:
+            output = denoise_video(
+                video_path=video_path,
+                outdir=outdir,
+                strength=strength,
             )
             return {"success": True, "path": str(output)}
         except ClipperError as exc:

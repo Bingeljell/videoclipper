@@ -132,6 +132,22 @@
                 <button id="overlayBtn" class="btn secondary">🎬 Overlay Audio</button>
             </section>
 
+            <!-- De-noise Section -->
+            <section class="card">
+                <h2>🔇 De-noise</h2>
+                <p class="help-text">Reduce background noise in a video's audio using FFT denoising.</p>
+                <div class="form-group">
+                    <label for="denoiseVideoInput">Video File</label>
+                    <input type="file" id="denoiseVideoInput" accept="video/*" />
+                </div>
+                <div class="form-group">
+                    <label for="denoiseStrengthInput">Noise Reduction Strength</label>
+                    <input type="range" id="denoiseStrengthInput" min="0" max="100" step="5" value="50" />
+                    <span id="denoiseStrengthValue">50%</span>
+                </div>
+                <button id="denoiseBtn" class="btn secondary">🔇 De-noise Video</button>
+            </section>
+
             <!-- Action Section -->
             <section class="card action-card">
                 <div class="action-buttons">

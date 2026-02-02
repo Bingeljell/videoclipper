@@ -600,6 +600,130 @@ def overlay_audio(
     return output_path
 
 
+def denoise_video(
+    video_path: Path,
+    outdir: Path,
+    strength: float = 0.5,
+) -> Path:
+    """Reduce background noise in a video's audio using FFT denoising.
+    
+    Args:
+        video_path: Path to the video file
+        outdir: Directory to save the output
+        strength: Noise reduction strength (0.0 to 1.0, where 0.5 is moderate)
+    """
+    _ensure_ffmpeg()
+    
+    if not video_path.exists():
+        raise ClipperError(f"Video file not found: {video_path}")
+    if not video_path.is_file():
+        raise ClipperError(f"Path is not a file: {video_path}")
+    
+    outdir.mkdir(parents=True, exist_ok=True)
+    
+    # Map strength (0.0-1.0) to afftdn noise floor (-80 to -20 dB)
+    # Higher strength = more aggressive noise reduction (less negative value)
+    noise_floor = -80 + (strength * 60)  # Range: -80 (light) to -20 (heavy)
+    
+    run_stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    base_name = _slugify(video_path.stem, 80) or "denoised"
+    output_path = outdir / f"{base_name}_denoised_{run_stamp}.mp4"
+    
+    # Use afftdn filter for FFT-based noise reduction
+    # nf = noise floor, track_noise = track noise automatically
+    audio_filter = f"afftdn=nf={noise_floor:.1f}:tn=1"
+    
+    cmd = [
+        "ffmpeg",
+        "-hide_banner",
+        "-y",
+        "-i",
+        str(video_path),
+        "-c:v",
+        "copy",  # Copy video stream (no re-encode)
+        "-c:a",
+        "aac",  # Re-encode audio with denoising
+        "-b:a",
+        "192k",  # Good quality audio
+        "-af",
+        audio_filter,
+        str(output_path),
+    ]
+    
+    _run_command(cmd, "Failed to denoise video audio.")
+    
+    return output_path
+
+
+def burn_captions(
+    video_path: Path,
+    subtitle_path: Path,
+    outdir: Path,
+    font_size: int = 24,
+    position: str = "bottom",
+) -> Path:
+    """Burn subtitles into a video using ffmpeg.
+    
+    Args:
+        video_path: Path to the video file
+        subtitle_path: Path to the subtitle file (SRT, VTT, ASS)
+        outdir: Directory to save the output
+        font_size: Font size for the subtitles (default: 24)
+        position: Position of subtitles - "bottom", "top", "center" (default: "bottom")
+    """
+    _ensure_ffmpeg()
+    
+    if not video_path.exists():
+        raise ClipperError(f"Video file not found: {video_path}")
+    if not subtitle_path.exists():
+        raise ClipperError(f"Subtitle file not found: {subtitle_path}")
+    
+    outdir.mkdir(parents=True, exist_ok=True)
+    
+    # Map position to ASS alignment values
+    position_map = {
+        "bottom": "2",  # Bottom center
+        "top": "6",     # Top center
+        "center": "5",  # Center
+    }
+    alignment = position_map.get(position, "2")
+    
+    run_stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    base_name = _slugify(video_path.stem, 80) or "captioned"
+    output_path = outdir / f"{base_name}_captioned_{run_stamp}.mp4"
+    
+    # Use ffmpeg to burn subtitles with styling
+    # Force_style allows customization of subtitle appearance
+    filter_str = (
+        f"subtitles='{str(subtitle_path).replace(':', '\\:')}':"
+        f"force_style='FontSize={font_size},Alignment={alignment},OutlineColour=&H40000000,"
+        f"BorderStyle=3,Outline=1,Shadow=0,MarginV=20'"
+    )
+    
+    cmd = [
+        "ffmpeg",
+        "-hide_banner",
+        "-y",
+        "-i",
+        str(video_path),
+        "-vf",
+        filter_str,
+        "-c:a",
+        "copy",  # Copy audio without re-encoding
+        "-c:v",
+        "libx264",  # Re-encode video with subtitles
+        "-preset",
+        "medium",  # Balance between speed and quality
+        "-crf",
+        "23",  # Good quality
+        str(output_path),
+    ]
+    
+    _run_command(cmd, "Failed to burn captions into video.")
+    
+    return output_path
+
+
 def clip_source(
     source: Path,
     ranges: list[tuple[int, int]],

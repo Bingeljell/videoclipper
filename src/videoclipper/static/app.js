@@ -36,6 +36,11 @@ const overlayFadeInput = document.getElementById('overlayFadeInput');
 const overlayFadeValue = document.getElementById('overlayFadeValue');
 const overlayBtn = document.getElementById('overlayBtn');
 
+const denoiseVideoInput = document.getElementById('denoiseVideoInput');
+const denoiseStrengthInput = document.getElementById('denoiseStrengthInput');
+const denoiseStrengthValue = document.getElementById('denoiseStrengthValue');
+const denoiseBtn = document.getElementById('denoiseBtn');
+
 const resultsSection = document.getElementById('resultsSection');
 const resultsList = document.getElementById('resultsList');
 
@@ -62,6 +67,12 @@ function setupEventListeners() {
         overlayFadeValue.textContent = e.target.value + 's';
     });
     overlayBtn.addEventListener('click', handleOverlay);
+    
+    // De-noise events
+    denoiseStrengthInput.addEventListener('input', (e) => {
+        denoiseStrengthValue.textContent = e.target.value + '%';
+    });
+    denoiseBtn.addEventListener('click', handleDenoise);
 }
 
 function setupQualityToggle() {
@@ -308,6 +319,54 @@ async function handleOverlay() {
     } finally {
         overlayBtn.disabled = false;
         overlayBtn.textContent = '🎬 Overlay Audio';
+    }
+}
+
+async function handleDenoise() {
+    const videoFile = denoiseVideoInput.files[0];
+    
+    if (!videoFile) {
+        showError('Please select a video file');
+        return;
+    }
+    
+    // Reset UI
+    resultsSection.classList.add('hidden');
+    resultsList.innerHTML = '';
+    progressContainer.classList.remove('hidden');
+    denoiseBtn.disabled = true;
+    denoiseBtn.textContent = 'Processing...';
+    updateProgress(10, 'Uploading video...');
+    
+    try {
+        const formData = new FormData();
+        formData.append('video', videoFile);
+        // Convert percentage (0-100) to strength (0.0-1.0)
+        formData.append('strength', (denoiseStrengthInput.value / 100).toString());
+        
+        updateProgress(30, 'De-noising audio...');
+        
+        const response = await fetch('/api/denoise', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            updateProgress(100, 'Complete!');
+            progressFill.classList.add('complete');
+            showResults([data.path]);
+        } else {
+            progressFill.classList.add('error');
+            showError(data.error || 'Failed to de-noise video');
+        }
+    } catch (err) {
+        progressFill.classList.add('error');
+        showError('Network error: ' + err.message);
+    } finally {
+        denoiseBtn.disabled = false;
+        denoiseBtn.textContent = '🔇 De-noise Video';
     }
 }
 

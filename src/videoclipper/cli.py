@@ -6,8 +6,10 @@ from pathlib import Path
 
 from .clipper import (
     ClipperError,
+    burn_captions,
     clip_source,
     clip_url,
+    denoise_video,
     download_audio,
     download_url,
     get_info,
@@ -202,6 +204,53 @@ def _build_overlay_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _build_denoise_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="videoclipper denoise",
+        description="Reduce background noise in a video's audio.",
+    )
+    parser.add_argument("video", help="Path to video file")
+    parser.add_argument(
+        "--outdir",
+        default="denoised",
+        help="Directory to save output (default: ./denoised)",
+    )
+    parser.add_argument(
+        "--strength",
+        type=float,
+        default=0.5,
+        help="Noise reduction strength 0.0-1.0 (default: 0.5, higher = more aggressive)",
+    )
+    return parser
+
+
+def _build_captions_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="videoclipper captions",
+        description="Burn subtitles/captions into a video.",
+    )
+    parser.add_argument("video", help="Path to video file")
+    parser.add_argument("subtitles", help="Path to subtitle file (SRT, VTT, ASS)")
+    parser.add_argument(
+        "--outdir",
+        default="captioned",
+        help="Directory to save output (default: ./captioned)",
+    )
+    parser.add_argument(
+        "--font-size",
+        type=int,
+        default=24,
+        help="Font size for captions (default: 24)",
+    )
+    parser.add_argument(
+        "--position",
+        choices=["bottom", "top", "center"],
+        default="bottom",
+        help="Position of captions (default: bottom)",
+    )
+    return parser
+
+
 def _resolve_ranges(args: argparse.Namespace) -> list[tuple[int, int]]:
     if args.clips:
         if args.start or args.end:
@@ -251,6 +300,21 @@ def main(argv: list[str] | None = None) -> int:
                 audio_path=Path(args.audio),
                 outdir=Path(args.outdir),
                 fade_duration=args.fade,
+            )
+        except ClipperError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        print(output)
+        return 0
+
+    if argv and argv[0] == "denoise":
+        parser = _build_denoise_parser()
+        args = parser.parse_args(argv[1:])
+        try:
+            output = denoise_video(
+                video_path=Path(args.video),
+                outdir=Path(args.outdir),
+                strength=args.strength,
             )
         except ClipperError as exc:
             print(f"error: {exc}", file=sys.stderr)
