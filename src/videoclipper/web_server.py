@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, File, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -18,6 +18,7 @@ from .clipper import (
     download_audio,
     download_url,
     get_info,
+    overlay_audio,
     parse_clip_ranges,
     parse_time,
 )
@@ -112,6 +113,41 @@ async def api_audio(data: dict) -> dict:
         return {"success": True, "path": str(output)}
     except ClipperError as exc:
         return {"success": False, "error": str(exc)}
+
+
+@app.post("/api/overlay")
+async def api_overlay(
+    video: UploadFile = File(...),
+    audio: UploadFile = File(...),
+    fade: float = 3.0,
+) -> dict:
+    """Overlay audio onto video with fade out."""
+    import tempfile
+    
+    outdir = Path("overlay")
+    outdir.mkdir(parents=True, exist_ok=True)
+    
+    # Save uploaded files to temp directory
+    with tempfile.TemporaryDirectory(prefix="videoclipper_overlay_", dir=outdir) as tmp:
+        workdir = Path(tmp)
+        video_path = workdir / video.filename
+        audio_path = workdir / audio.filename
+        
+        with open(video_path, "wb") as f:
+            f.write(await video.read())
+        with open(audio_path, "wb") as f:
+            f.write(await audio.read())
+        
+        try:
+            output = overlay_audio(
+                video_path=video_path,
+                audio_path=audio_path,
+                outdir=outdir,
+                fade_duration=fade,
+            )
+            return {"success": True, "path": str(output)}
+        except ClipperError as exc:
+            return {"success": False, "error": str(exc)}
 
 
 @app.post("/api/clip")

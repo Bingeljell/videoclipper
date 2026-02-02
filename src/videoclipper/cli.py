@@ -11,6 +11,7 @@ from .clipper import (
     download_audio,
     download_url,
     get_info,
+    overlay_audio,
     parse_clip_ranges,
     parse_time,
 )
@@ -180,6 +181,27 @@ def _build_audio_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _build_overlay_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="videoclipper overlay",
+        description="Overlay an audio track onto a video file.",
+    )
+    parser.add_argument("video", help="Path to video file")
+    parser.add_argument("audio", help="Path to audio file")
+    parser.add_argument(
+        "--outdir",
+        default="overlay",
+        help="Directory to save output (default: ./overlay)",
+    )
+    parser.add_argument(
+        "--fade",
+        type=float,
+        default=3.0,
+        help="Fade out duration in seconds (default: 3)",
+    )
+    return parser
+
+
 def _resolve_ranges(args: argparse.Namespace) -> list[tuple[int, int]]:
     if args.clips:
         if args.start or args.end:
@@ -213,6 +235,22 @@ def main(argv: list[str] | None = None) -> int:
                 url=args.url,
                 outdir=Path(args.outdir),
                 output_format=args.format.strip().lstrip("."),
+            )
+        except ClipperError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        print(output)
+        return 0
+
+    if argv and argv[0] == "overlay":
+        parser = _build_overlay_parser()
+        args = parser.parse_args(argv[1:])
+        try:
+            output = overlay_audio(
+                video_path=Path(args.video),
+                audio_path=Path(args.audio),
+                outdir=Path(args.outdir),
+                fade_duration=args.fade,
             )
         except ClipperError as exc:
             print(f"error: {exc}", file=sys.stderr)

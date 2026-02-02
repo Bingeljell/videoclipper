@@ -30,6 +30,12 @@ const progressContainer = document.getElementById('progressContainer');
 const progressFill = document.getElementById('progressFill');
 const progressText = document.getElementById('progressText');
 
+const overlayVideoInput = document.getElementById('overlayVideoInput');
+const overlayAudioInput = document.getElementById('overlayAudioInput');
+const overlayFadeInput = document.getElementById('overlayFadeInput');
+const overlayFadeValue = document.getElementById('overlayFadeValue');
+const overlayBtn = document.getElementById('overlayBtn');
+
 const resultsSection = document.getElementById('resultsSection');
 const resultsList = document.getElementById('resultsList');
 
@@ -50,6 +56,12 @@ function setupEventListeners() {
     generateBtn.addEventListener('click', handleGenerate);
     downloadAudioBtn.addEventListener('click', handleDownloadAudio);
     browseBtn.addEventListener('click', handleBrowse);
+    
+    // Overlay events
+    overlayFadeInput.addEventListener('input', (e) => {
+        overlayFadeValue.textContent = e.target.value + 's';
+    });
+    overlayBtn.addEventListener('click', handleOverlay);
 }
 
 function setupQualityToggle() {
@@ -243,6 +255,59 @@ async function handleDownloadAudio() {
         showError('Network error: ' + err.message);
     } finally {
         resetButtons();
+    }
+}
+
+async function handleOverlay() {
+    const videoFile = overlayVideoInput.files[0];
+    const audioFile = overlayAudioInput.files[0];
+    
+    if (!videoFile) {
+        showError('Please select a video file');
+        return;
+    }
+    if (!audioFile) {
+        showError('Please select an audio file');
+        return;
+    }
+    
+    // Reset UI
+    resultsSection.classList.add('hidden');
+    resultsList.innerHTML = '';
+    progressContainer.classList.remove('hidden');
+    overlayBtn.disabled = true;
+    overlayBtn.textContent = 'Processing...';
+    updateProgress(10, 'Uploading files...');
+    
+    try {
+        const formData = new FormData();
+        formData.append('video', videoFile);
+        formData.append('audio', audioFile);
+        formData.append('fade', overlayFadeInput.value);
+        
+        updateProgress(30, 'Processing...');
+        
+        const response = await fetch('/api/overlay', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            updateProgress(100, 'Complete!');
+            progressFill.classList.add('complete');
+            showResults([data.path]);
+        } else {
+            progressFill.classList.add('error');
+            showError(data.error || 'Failed to overlay audio');
+        }
+    } catch (err) {
+        progressFill.classList.add('error');
+        showError('Network error: ' + err.message);
+    } finally {
+        overlayBtn.disabled = false;
+        overlayBtn.textContent = '🎬 Overlay Audio';
     }
 }
 

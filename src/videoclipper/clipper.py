@@ -513,6 +513,93 @@ def download_audio(
     return output_path
 
 
+def _get_media_duration(path: Path) -> float:
+    """Get the duration of a media file in seconds using ffprobe."""
+    cmd = [
+        "ffprobe",
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "csv=p=0",
+        str(path),
+    ]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        return float(result.stdout.strip())
+    except (subprocess.CalledProcessError, ValueError) as exc:
+        raise ClipperError(f"Failed to get duration of {path}") from exc
+
+
+def overlay_audio(
+    video_path: Path,
+    audio_path: Path,
+    outdir: Path,
+    fade_duration: float = 3.0,
+) -> Path:
+    """Overlay an audio track onto a video.
+    
+    The audio will be trimmed to match the video length and faded out
+    at the end to avoid abrupt cuts.
+    """
+    _ensure_ffmpeg()
+    
+    if not video_path.exists():
+        raise ClipperError(f"Video file not found: {video_path}")
+    if not audio_path.exists():
+        raise ClipperError(f"Audio file not found: {audio_path}")
+    
+    outdir.mkdir(parents=True, exist_ok=True)
+    
+    # Get durations
+    video_duration = _get_media_duration(video_path)
+    audio_duration = _get_media_duration(audio_path)
+    
+    # Calculate fade start time
+    fade_start = max(0, video_duration - fade_duration)
+    actual_fade_duration = min(fade_duration, video_duration)
+    
+    run_stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    base_name = _slugify(video_path.stem, 80) or "overlay"
+    output_path = outdir / f"{base_name}_overlay_{run_stamp}.mp4"
+    
+    # Process audio and combine with video in one command
+    # Trim audio to video length, apply fade out
+    filter_complex = (
+        f"[1:a]atrim=0:{video_duration},"
+        f"afade=t=out:st={fade_start}:d={actual_fade_duration}[aout]"
+    )
+    
+    cmd = [
+        "ffmpeg",
+        "-hide_banner",
+        "-y",
+        "-i",
+        str(video_path),
+        "-i",
+        str(audio_path),
+        "-filter_complex",
+        filter_complex,
+        "-map",
+        "0:v:0",  # Video from first input
+        "-map",
+        "[aout]",  # Processed audio
+        "-c:v",
+        "copy",  # Copy video stream (no re-encode)
+        "-c:a",
+        "aac",  # Re-encode audio to AAC
+        "-b:a",
+        "192k",  # Good quality audio
+        "-shortest",  # Ensure output matches shortest input
+        str(output_path),
+    ]
+    
+    _run_command(cmd, "Failed to overlay audio onto video.")
+    
+    return output_path
+
+
 def clip_source(
     source: Path,
     ranges: list[tuple[int, int]],

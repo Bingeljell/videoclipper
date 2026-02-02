@@ -31,6 +31,8 @@ Then open http://127.0.0.1:8000 in your browser. The web UI provides:
 - Quality and format selection
 - Real-time progress updates
 - Output directory and filename customization
+- Download audio only (MP3, WAV, AAC, OGG, FLAC)
+- **Audio Overlay**: Upload a video and audio file to combine them with automatic fade-out
 
 Options:
 ```bash
@@ -71,6 +73,13 @@ Download audio only (as MP3):
 ```bash
 videoclipper audio <url>
 videoclipper audio <url> --format wav --outdir ./audio
+```
+
+Overlay audio onto video:
+
+```bash
+videoclipper overlay video.mp4 audio.mp3
+videoclipper overlay video.mp4 audio.mp3 --fade 5 --outdir ./output
 ```
 
 Common options:
