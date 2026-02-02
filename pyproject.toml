@@ -8,7 +8,10 @@ version = "0.1.0"
 description = "CLI for generating clips from online videos."
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.23.0",
+]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.4"]

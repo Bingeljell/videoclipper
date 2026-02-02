@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎬 Video Clipper</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎬 Video Clipper</h1>
+            <p class="subtitle">Download and clip videos locally</p>
+        </header>
+
+        <main>
+            <!-- URL Section -->
+            <section class="card">
+                <h2>Video URL</h2>
+                <div class="input-group">
+                    <input type="text" id="urlInput" placeholder="Paste video URL here..." />
+                    <button id="getInfoBtn" class="btn secondary">Get Info</button>
+                </div>
+                <div id="infoPanel" class="info-panel hidden">
+                    <div class="info-grid">
+                        <div><strong>Title:</strong> <span id="infoTitle">-</span></div>
+                        <div><strong>Channel:</strong> <span id="infoChannel">-</span></div>
+                        <div><strong>Duration:</strong> <span id="infoDuration">-</span></div>
+                        <div><strong>H.264 MP4 heights:</strong> <span id="infoHeights">-</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Options Section -->
+            <section class="card">
+                <h2>Options</h2>
+                <div class="options-grid">
+                    <div class="form-group">
+                        <label for="qualitySelect">Quality</label>
+                        <select id="qualitySelect">
+                            <option value="360">360p</option>
+                            <option value="480" selected>480p</option>
+                            <option value="720">720p</option>
+                            <option value="1080">1080p</option>
+                            <option value="custom">Custom height...</option>
+                        </select>
+                        <input type="number" id="customHeight" class="hidden" placeholder="Height in pixels" min="1" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="formatSelect">Format</label>
+                        <select id="formatSelect">
+                            <option value="mp4" selected>MP4</option>
+                            <option value="mkv">MKV</option>
+                            <option value="webm">WebM</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="modeSelect">Clipping Mode</label>
+                        <select id="modeSelect">
+                            <option value="fast" selected>Fast (stream copy)</option>
+                            <option value="precise">Precise (re-encode)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="audioFormatSelect">Audio Only Format</label>
+                        <select id="audioFormatSelect">
+                            <option value="" selected>— (video with audio) —</option>
+                            <option value="mp3">MP3</option>
+                            <option value="wav">WAV</option>
+                            <option value="aac">AAC</option>
+                            <option value="ogg">OGG</option>
+                            <option value="flac">FLAC</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Clips Section -->
+            <section class="card">
+                <h2>Clips <button id="addClipBtn" class="btn small">+ Add Clip</button></h2>
+                <div id="clipsContainer">
+                    <div class="clip-row" data-index="0">
+                        <div class="time-input">
+                            <label>Start</label>
+                            <input type="text" class="start-time" placeholder="mm:ss or seconds" />
+                        </div>
+                        <div class="time-input">
+                            <label>End</label>
+                            <input type="text" class="end-time" placeholder="mm:ss or seconds" />
+                        </div>
+                        <button class="btn icon remove-clip" title="Remove clip">×</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Output Section -->
+            <section class="card">
+                <h2>Output</h2>
+                <div class="form-group">
+                    <label for="outdirInput">Output Directory</label>
+                    <div class="input-group">
+                        <input type="text" id="outdirInput" value="./clips" placeholder="./clips" />
+                        <button id="browseBtn" class="btn secondary">Browse</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="prefixInput">Filename Prefix (optional)</label>
+                    <input type="text" id="prefixInput" placeholder="my_clip_" />
+                </div>
+            </section>
+
+            <!-- Action Section -->
+            <section class="card action-card">
+                <div class="action-buttons">
+                    <button id="generateBtn" class="btn primary large">🎬 Generate Clips</button>
+                    <button id="downloadAudioBtn" class="btn secondary large">🎵 Download Audio</button>
+                </div>
+                <div id="progressContainer" class="progress-container hidden">
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill"></div>
+                    </div>
+                    <div id="progressText" class="progress-text">Ready</div>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section id="resultsSection" class="card hidden">
+                <h2>Results</h2>
+                <div id="resultsList"></div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Video Clipper — Local video clipping tool</p>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

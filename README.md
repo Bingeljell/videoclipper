@@ -17,6 +17,28 @@ pip install -e .
 
 ## Usage
 
+### Web UI (Recommended)
+
+Launch the web interface for a visual clipping experience:
+
+```bash
+videoclipper web
+```
+
+Then open http://127.0.0.1:8000 in your browser. The web UI provides:
+- Paste URLs and preview video info
+- Add multiple clip ranges with visual feedback
+- Quality and format selection
+- Real-time progress updates
+- Output directory and filename customization
+
+Options:
+```bash
+videoclipper web --port 8080  # Use a different port
+```
+
+### CLI Usage
+
 Single clip:
 
 ```bash
@@ -42,6 +64,13 @@ Download once, clip many:
 ```bash
 videoclipper download <url> --720p --outdir ./fullvideos
 videoclipper clip ./fullvideos/<channel>_<title>.mp4 --clips "10-30,120-150"
+```
+
+Download audio only (as MP3):
+
+```bash
+videoclipper audio <url>
+videoclipper audio <url> --format wav --outdir ./audio
 ```
 
 Common options:

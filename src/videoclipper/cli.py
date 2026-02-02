@@ -8,11 +8,13 @@ from .clipper import (
     ClipperError,
     clip_source,
     clip_url,
+    download_audio,
     download_url,
     get_info,
     parse_clip_ranges,
     parse_time,
 )
+from .web_server import run_server
 
 
 def _add_quality_flags(parser: argparse.ArgumentParser) -> None:
@@ -140,6 +142,44 @@ def _build_download_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _build_web_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="videoclipper web",
+        description="Launch the web UI for video clipping.",
+    )
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Host to bind the server to (default: 127.0.0.1)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port to run the server on (default: 8000)",
+    )
+    return parser
+
+
+def _build_audio_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="videoclipper audio",
+        description="Download audio from a supported URL as MP3.",
+    )
+    parser.add_argument("url", help="Video URL")
+    parser.add_argument(
+        "--outdir",
+        default="audio",
+        help="Directory to save audio files (default: ./audio)",
+    )
+    parser.add_argument(
+        "--format",
+        default="mp3",
+        help="Output audio format (default: mp3)",
+    )
+    return parser
+
+
 def _resolve_ranges(args: argparse.Namespace) -> list[tuple[int, int]]:
     if args.clips:
         if args.start or args.end:
@@ -156,6 +196,29 @@ def _resolve_ranges(args: argparse.Namespace) -> list[tuple[int, int]]:
 def main(argv: list[str] | None = None) -> int:
     if argv is None:
         argv = sys.argv[1:]
+
+    if argv and argv[0] == "web":
+        parser = _build_web_parser()
+        args = parser.parse_args(argv[1:])
+        print(f"Starting web server at http://{args.host}:{args.port}")
+        print("Press Ctrl+C to stop")
+        run_server(host=args.host, port=args.port)
+        return 0
+
+    if argv and argv[0] == "audio":
+        parser = _build_audio_parser()
+        args = parser.parse_args(argv[1:])
+        try:
+            output = download_audio(
+                url=args.url,
+                outdir=Path(args.outdir),
+                output_format=args.format.strip().lstrip("."),
+            )
+        except ClipperError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        print(output)
+        return 0
 
     if argv and argv[0] == "download":
         parser = _build_download_parser()

@@ -374,6 +374,145 @@ def download_url(
     return _download_source(url, output_template, format_selector, merge_format)
 
 
+def _get_best_audio_format(data: dict) -> str:
+    """Get the format ID with the best audio quality that's likely to work.
+    
+    YouTube typically blocks audio-only (format 140) and high-quality video.
+    We look for 720p or lower combined video+audio formats which usually have 
+    good audio (128-160 kbps AAC) and are less likely to be blocked.
+    """
+    formats = data.get("formats", [])
+    if not formats:
+        return "worst"
+    
+    # Find formats with both video and audio (vcodec and acodec present)
+    video_audio_formats = []
+    for fmt in formats:
+        height = fmt.get("height")
+        vcodec = fmt.get("vcodec", "none")
+        acodec = fmt.get("acodec", "none")
+        format_id = fmt.get("format_id", "")
+        abr = fmt.get("abr")  # Audio bitrate if available
+        
+        # Skip audio-only or video-only formats
+        if not height or vcodec in (None, "none") or acodec in (None, "none"):
+            continue
+        
+        # Skip very high resolutions (more likely to be blocked)
+        if height > 720:
+            continue
+        
+        video_audio_formats.append({
+            "format_id": format_id,
+            "height": height,
+            "abr": abr or 0,
+            "ext": fmt.get("ext", ""),
+        })
+    
+    if not video_audio_formats:
+        return "worst"
+    
+    # Sort by audio bitrate (descending), then by height (descending)
+    # This prioritizes formats with better audio quality
+    video_audio_formats.sort(key=lambda x: (x["abr"], x["height"]), reverse=True)
+    
+    # Return the format ID with best audio (usually 720p or 480p)
+    return video_audio_formats[0]["format_id"]
+
+
+def _audio_base_name(data: dict) -> str:
+    """Generate a short base name for audio files (channel + timestamp only)."""
+    channel = data.get("channel") or data.get("uploader") or ""
+    channel_slug = _slugify(channel, 40) or "audio"
+    return channel_slug
+
+
+def download_audio(
+    url: str,
+    outdir: Path,
+    output_format: str = "mp3",
+) -> Path:
+    """Download audio from URL and convert to specified format (default: mp3).
+    
+    Since audio-only formats may be blocked, we download the lowest quality video
+    (which includes audio) and extract the audio track.
+    """
+    _ensure_ffmpeg()
+    _ensure_yt_dlp()
+
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    # Get video info and find the worst quality format with both video and audio
+    data = _inspect_formats(url)
+    base_name = _audio_base_name(data)
+    format_id = _get_best_audio_format(data)
+    run_stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+
+    # Download the selected format
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix="videoclipper_audio_", dir=outdir) as tmp:
+        workdir = Path(tmp)
+        temp_video = workdir / f"temp_video_{run_stamp}.%(ext)s"
+        
+        download_cmd = [
+            "yt-dlp",
+            "-f",
+            format_id,
+            "--no-playlist",
+            "-o",
+            str(temp_video),
+            url,
+        ]
+        
+        try:
+            subprocess.run(download_cmd, check=True, capture_output=True)
+        except subprocess.CalledProcessError as exc:
+            # Fall back to "worst" if specific format fails
+            download_cmd[2] = "worst"
+            try:
+                subprocess.run(download_cmd, check=True, capture_output=True)
+            except subprocess.CalledProcessError as exc2:
+                stderr_msg = exc2.stderr.decode() if exc2.stderr else ""
+                raise ClipperError(f"Failed to download video for audio extraction: {stderr_msg}") from exc2
+        
+        # Find the downloaded file
+        pattern = temp_video.name.replace("%(ext)s", "*")
+        candidates = sorted(workdir.glob(pattern.replace("*", "*")))
+        if not candidates:
+            raise ClipperError("Download succeeded but no video file was found.")
+        
+        downloaded_file = candidates[0]
+        output_path = outdir / f"{base_name}_audio_{run_stamp}.{output_format}"
+        
+        # Extract audio with ffmpeg
+        codec_map = {
+            "mp3": "libmp3lame",
+            "aac": "aac",
+            "ogg": "libvorbis",
+            "flac": "flac",
+            "wav": "pcm_s16le",
+        }
+        codec = codec_map.get(output_format, "copy")
+        
+        ffmpeg_cmd = [
+            "ffmpeg",
+            "-hide_banner",
+            "-y",
+            "-i",
+            str(downloaded_file),
+            "-vn",  # No video
+            "-c:a",
+            codec,
+            "-q:a",
+            "2" if output_format == "mp3" else "0",
+            str(output_path),
+        ]
+        
+        _run_command(ffmpeg_cmd, f"Failed to extract audio to {output_format}.")
+
+    return output_path
+
+
 def clip_source(
     source: Path,
     ranges: list[tuple[int, int]],
