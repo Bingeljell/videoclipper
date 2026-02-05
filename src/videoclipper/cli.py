@@ -239,14 +239,19 @@ def _build_captions_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--font-size",
         type=int,
-        default=24,
-        help="Font size for captions (default: 24)",
+        default=18,
+        help="Font size for captions (default: 18)",
     )
     parser.add_argument(
         "--position",
         choices=["bottom", "top", "center"],
         default="bottom",
         help="Position of captions (default: bottom)",
+    )
+    parser.add_argument(
+        "--bg-color",
+        default="#000000",
+        help="Background color in hex (default: #000000 for black, use #00000000 for transparent)",
     )
     return parser
 
@@ -315,6 +320,24 @@ def main(argv: list[str] | None = None) -> int:
                 video_path=Path(args.video),
                 outdir=Path(args.outdir),
                 strength=args.strength,
+            )
+        except ClipperError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        print(output)
+        return 0
+
+    if argv and argv[0] == "captions":
+        parser = _build_captions_parser()
+        args = parser.parse_args(argv[1:])
+        try:
+            output = burn_captions(
+                video_path=Path(args.video),
+                subtitle_path=Path(args.subtitles),
+                outdir=Path(args.outdir),
+                font_size=args.font_size,
+                position=args.position,
+                bg_color=args.bg_color,
             )
         except ClipperError as exc:
             print(f"error: {exc}", file=sys.stderr)

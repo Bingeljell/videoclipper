@@ -34,6 +34,7 @@ Then open http://127.0.0.1:8000 in your browser. The web UI provides:
 - Download audio only (MP3, WAV, AAC, OGG, FLAC)
 - **Audio Overlay**: Upload a video and audio file to combine them with automatic fade-out
 - **De-noise**: Upload a video to reduce background noise in the audio
+- **Captions**: Upload a video and subtitle file (SRT/VTT/ASS) to burn captions into the video
 
 Options:
 ```bash
@@ -88,6 +89,13 @@ De-noise video audio (reduce background noise):
 ```bash
 videoclipper denoise video.mp4
 videoclipper denoise video.mp4 --strength 0.7 --outdir ./output
+```
+
+Burn captions/subtitles into video:
+
+```bash
+videoclipper captions video.mp4 subtitles.srt
+videoclipper captions video.mp4 subtitles.srt --font-size 24 --position bottom --bg-color "#000000" --outdir ./output
 ```
 
 Common options:

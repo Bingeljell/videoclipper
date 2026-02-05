@@ -339,13 +339,19 @@ input[type="range"] {
 }
 
 .result-item .filename {
-    flex: 1;
+    display: block;
     font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
     color: var(--text);
     overflow-wrap: break-word;
     word-break: break-all;
     max-width: 100%;
 }
+
+.result-item .directory {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
 
 .result-item .status {
     color: var(--success);

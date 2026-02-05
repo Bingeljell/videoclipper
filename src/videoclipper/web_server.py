@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .clipper import (
     ClipperError,
+    burn_captions,
     clip_source,
     denoise_video,
     download_audio,
@@ -175,6 +176,45 @@ async def api_denoise(
                 video_path=video_path,
                 outdir=outdir,
                 strength=strength,
+            )
+            return {"success": True, "path": str(output)}
+        except ClipperError as exc:
+            return {"success": False, "error": str(exc)}
+
+
+@app.post("/api/captions")
+async def api_captions(
+    video: UploadFile = File(...),
+    subtitles: UploadFile = File(...),
+    font_size: int = 18,
+    position: str = "bottom",
+    bg_color: str = "#000000",
+) -> dict:
+    """Burn subtitles into video."""
+    import tempfile
+    
+    outdir = Path("captioned")
+    outdir.mkdir(parents=True, exist_ok=True)
+    
+    # Save uploaded files to temp directory
+    with tempfile.TemporaryDirectory(prefix="videoclipper_captions_", dir=outdir) as tmp:
+        workdir = Path(tmp)
+        video_path = workdir / video.filename
+        subtitle_path = workdir / subtitles.filename
+        
+        with open(video_path, "wb") as f:
+            f.write(await video.read())
+        with open(subtitle_path, "wb") as f:
+            f.write(await subtitles.read())
+        
+        try:
+            output = burn_captions(
+                video_path=video_path,
+                subtitle_path=subtitle_path,
+                outdir=outdir,
+                font_size=font_size,
+                position=position,
+                bg_color=bg_color,
             )
             return {"success": True, "path": str(output)}
         except ClipperError as exc:

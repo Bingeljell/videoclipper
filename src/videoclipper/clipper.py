@@ -89,6 +89,11 @@ def _ensure_ffmpeg() -> None:
         raise ClipperError("Missing dependency on PATH: ffmpeg.")
 
 
+def _ensure_ffprobe() -> None:
+    if shutil.which("ffprobe") is None:
+        raise ClipperError("Missing dependency on PATH: ffprobe.")
+
+
 def _ensure_yt_dlp() -> None:
     if shutil.which("yt-dlp") is None:
         raise ClipperError("Missing dependency on PATH: yt-dlp.")
@@ -167,6 +172,33 @@ def _available_heights(data: dict) -> tuple[list[int], list[int]]:
     return sorted(h264_mp4), sorted(all_video)
 
 
+def _probe_media(path: Path) -> dict:
+    _ensure_ffprobe()
+    cmd = [
+        "ffprobe",
+        "-v",
+        "error",
+        "-print_format",
+        "json",
+        "-show_format",
+        "-show_streams",
+        str(path),
+    ]
+    try:
+        result = subprocess.run(
+            cmd,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        raise ClipperError(f"Failed to inspect media file: {path}") from exc
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise ClipperError("Failed to parse ffprobe output.") from exc
+
+
 def _format_duration(seconds: int | None) -> str:
     if seconds is None:
         return "unknown"
@@ -210,6 +242,58 @@ def get_info(url: str) -> dict:
         "duration_text": _format_duration(duration),
         "h264_heights": h264_mp4,
         "all_heights": all_heights,
+    }
+
+
+def get_local_info(path: Path) -> dict:
+    _ensure_ffmpeg()
+    if not path.exists():
+        raise ClipperError(f"Source file not found: {path}")
+    if not path.is_file():
+        raise ClipperError(f"Source path is not a file: {path}")
+
+    data = _probe_media(path)
+    streams = data.get("streams", [])
+    format_data = data.get("format", {})
+    duration = format_data.get("duration")
+    try:
+        duration_seconds = int(float(duration)) if duration is not None else None
+    except ValueError:
+        duration_seconds = None
+
+    video_stream = next(
+        (stream for stream in streams if stream.get("codec_type") == "video"),
+        None,
+    )
+    audio_stream = next(
+        (stream for stream in streams if stream.get("codec_type") == "audio"),
+        None,
+    )
+
+    height = video_stream.get("height") if video_stream else None
+    width = video_stream.get("width") if video_stream else None
+    vcodec = video_stream.get("codec_name") if video_stream else ""
+    acodec = audio_stream.get("codec_name") if audio_stream else ""
+
+    h264_heights = []
+    all_heights = []
+    if height:
+        all_heights = [height]
+        if vcodec == "h264" and path.suffix.lower() == ".mp4":
+            h264_heights = [height]
+
+    return {
+        "title": path.name,
+        "channel": "",
+        "video_id": "",
+        "duration_seconds": duration_seconds,
+        "duration_text": _format_duration(duration_seconds),
+        "h264_heights": h264_heights,
+        "all_heights": all_heights,
+        "width": width,
+        "height": height,
+        "video_codec": vcodec,
+        "audio_codec": acodec,
     }
 
 
@@ -659,8 +743,9 @@ def burn_captions(
     video_path: Path,
     subtitle_path: Path,
     outdir: Path,
-    font_size: int = 24,
+    font_size: int = 18,
     position: str = "bottom",
+    bg_color: str = "#000000",
 ) -> Path:
     """Burn subtitles into a video using ffmpeg.
     
@@ -668,8 +753,9 @@ def burn_captions(
         video_path: Path to the video file
         subtitle_path: Path to the subtitle file (SRT, VTT, ASS)
         outdir: Directory to save the output
-        font_size: Font size for the subtitles (default: 24)
+        font_size: Font size for the subtitles (default: 18)
         position: Position of subtitles - "bottom", "top", "center" (default: "bottom")
+        bg_color: Background color in hex (default: "#000000" for black)
     """
     _ensure_ffmpeg()
     
@@ -688,16 +774,39 @@ def burn_captions(
     }
     alignment = position_map.get(position, "2")
     
+    # Convert hex color to ASS format (&HAABBGGRR)
+    # Remove # and convert to BGR format with alpha
+    bg_color_clean = bg_color.lstrip("#")
+    if len(bg_color_clean) == 8:
+        # Already has alpha (e.g., #80000000)
+        a = bg_color_clean[0:2]
+        r = bg_color_clean[2:4]
+        g = bg_color_clean[4:6]
+        b = bg_color_clean[6:8]
+        bg_color_ass = f"&H{a}{b}{g}{r}"
+    elif len(bg_color_clean) == 6:
+        # No alpha, add 80 (50% transparent)
+        r = bg_color_clean[0:2]
+        g = bg_color_clean[2:4]
+        b = bg_color_clean[4:6]
+        bg_color_ass = f"&H80{b}{g}{r}"
+    else:
+        bg_color_ass = "&H80000000"  # Default semi-transparent black
+    
     run_stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     base_name = _slugify(video_path.stem, 80) or "captioned"
     output_path = outdir / f"{base_name}_captioned_{run_stamp}.mp4"
     
     # Use ffmpeg to burn subtitles with styling
     # Force_style allows customization of subtitle appearance
+    # PrimaryColour = white text (&H00FFFFFF)
+    # OutlineColour = black outline (&HFF000000) for contrast
+    # BackColour = semi-transparent background
     filter_str = (
         f"subtitles='{str(subtitle_path).replace(':', '\\:')}':"
-        f"force_style='FontSize={font_size},Alignment={alignment},OutlineColour=&H40000000,"
-        f"BorderStyle=3,Outline=1,Shadow=0,MarginV=20'"
+        f"force_style='FontSize={font_size},Alignment={alignment},PrimaryColour=&H00FFFFFF,"
+        f"OutlineColour=&HFF000000,BackColour={bg_color_ass},Outline=2,Shadow=0,MarginV=20,"
+        f"BorderStyle=4'"
     )
     
     cmd = [

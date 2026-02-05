@@ -41,6 +41,14 @@ const denoiseStrengthInput = document.getElementById('denoiseStrengthInput');
 const denoiseStrengthValue = document.getElementById('denoiseStrengthValue');
 const denoiseBtn = document.getElementById('denoiseBtn');
 
+const captionsVideoInput = document.getElementById('captionsVideoInput');
+const captionsSubtitleInput = document.getElementById('captionsSubtitleInput');
+const captionsFontSizeInput = document.getElementById('captionsFontSizeInput');
+const captionsFontSizeValue = document.getElementById('captionsFontSizeValue');
+const captionsBgColorInput = document.getElementById('captionsBgColorInput');
+const captionsPositionInput = document.getElementById('captionsPositionInput');
+const captionsBtn = document.getElementById('captionsBtn');
+
 const resultsSection = document.getElementById('resultsSection');
 const resultsList = document.getElementById('resultsList');
 
@@ -73,6 +81,12 @@ function setupEventListeners() {
         denoiseStrengthValue.textContent = e.target.value + '%';
     });
     denoiseBtn.addEventListener('click', handleDenoise);
+    
+    // Captions events
+    captionsFontSizeInput.addEventListener('input', (e) => {
+        captionsFontSizeValue.textContent = e.target.value + 'px';
+    });
+    captionsBtn.addEventListener('click', handleCaptions);
 }
 
 function setupQualityToggle() {
@@ -370,6 +384,61 @@ async function handleDenoise() {
     }
 }
 
+async function handleCaptions() {
+    const videoFile = captionsVideoInput.files[0];
+    const subtitleFile = captionsSubtitleInput.files[0];
+    
+    if (!videoFile) {
+        showError('Please select a video file');
+        return;
+    }
+    if (!subtitleFile) {
+        showError('Please select a subtitle file (SRT, VTT, or ASS)');
+        return;
+    }
+    
+    // Reset UI
+    resultsSection.classList.add('hidden');
+    resultsList.innerHTML = '';
+    progressContainer.classList.remove('hidden');
+    captionsBtn.disabled = true;
+    captionsBtn.textContent = 'Processing...';
+    updateProgress(10, 'Uploading files...');
+    
+    try {
+        const formData = new FormData();
+        formData.append('video', videoFile);
+        formData.append('subtitles', subtitleFile);
+        formData.append('font_size', captionsFontSizeInput.value);
+        formData.append('bg_color', captionsBgColorInput.value);
+        formData.append('position', captionsPositionInput.value);
+        
+        updateProgress(30, 'Burning captions...');
+        
+        const response = await fetch('/api/captions', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            updateProgress(100, 'Complete!');
+            progressFill.classList.add('complete');
+            showResults([data.path]);
+        } else {
+            progressFill.classList.add('error');
+            showError(data.error || 'Failed to add captions');
+        }
+    } catch (err) {
+        progressFill.classList.add('error');
+        showError('Network error: ' + err.message);
+    } finally {
+        captionsBtn.disabled = false;
+        captionsBtn.textContent = '💬 Add Captions';
+    }
+}
+
 function connectWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws`;
@@ -430,10 +499,15 @@ function updateProgress(percent, message) {
 function showResults(outputs) {
     resultsSection.classList.remove('hidden');
     resultsList.innerHTML = outputs.map(path => {
-        const filename = path.split('/').pop();
+        const parts = path.split('/');
+        const filename = parts.pop();
+        const directory = parts.join('/') || '.';
         return `
             <div class="result-item">
-                <span class="filename">${escapeHtml(filename)}</span>
+                <div>
+                    <span class="filename">${escapeHtml(filename)}</span>
+                    <span class="directory">in ${escapeHtml(directory)}</span>
+                </div>
                 <span class="status">✓ Created</span>
             </div>
         `;

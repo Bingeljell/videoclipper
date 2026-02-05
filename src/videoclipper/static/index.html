@@ -148,6 +148,44 @@
                 <button id="denoiseBtn" class="btn secondary">🔇 De-noise Video</button>
             </section>
 
+            <!-- Captions Section -->
+            <section class="card">
+                <h2>💬 Captions</h2>
+                <p class="help-text">Burn subtitles/captions into a video. Supports SRT, VTT, and ASS subtitle files.</p>
+                <div class="form-group">
+                    <label for="captionsVideoInput">Video File</label>
+                    <input type="file" id="captionsVideoInput" accept="video/*" />
+                </div>
+                <div class="form-group">
+                    <label for="captionsSubtitleInput">Subtitle File (SRT, VTT, ASS)</label>
+                    <input type="file" id="captionsSubtitleInput" accept=".srt,.vtt,.ass" />
+                </div>
+                <div class="form-group">
+                    <label for="captionsFontSizeInput">Font Size</label>
+                    <input type="range" id="captionsFontSizeInput" min="12" max="48" step="2" value="18" />
+                    <span id="captionsFontSizeValue">18px</span>
+                </div>
+                <div class="form-group">
+                    <label for="captionsBgColorInput">Background Color</label>
+                    <select id="captionsBgColorInput">
+                        <option value="#000000" selected>Black (semi-transparent)</option>
+                        <option value="#00000000">Transparent</option>
+                        <option value="#80000000">Dark Gray</option>
+                        <option value="#40000000">Light Gray</option>
+                        <option value="#66000000">Medium Gray</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="captionsPositionInput">Position</label>
+                    <select id="captionsPositionInput">
+                        <option value="bottom" selected>Bottom</option>
+                        <option value="top">Top</option>
+                        <option value="center">Center</option>
+                    </select>
+                </div>
+                <button id="captionsBtn" class="btn secondary">💬 Add Captions</button>
+            </section>
+
             <!-- Action Section -->
             <section class="card action-card">
                 <div class="action-buttons">
