@@ -8,189 +8,35 @@
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>🎬 Video Clipper</h1>
-            <p class="subtitle">Download and clip videos locally</p>
+        <header class="topbar">
+            <div class="brand">
+                <h1>Video Clipper</h1>
+                <p class="subtitle">Local, fast, and focused clip workflows</p>
+            </div>
+            <div class="status">
+                <span id="statusPill" class="status-pill idle">Idle</span>
+            </div>
         </header>
 
+        <nav class="nav">
+            <a href="#source">Source</a>
+            <a href="#options">Options</a>
+            <a href="#clips">Clips</a>
+            <a href="#output">Output</a>
+            <a href="#enhance">Enhance</a>
+            <a href="#compress">Compress</a>
+            <a href="#results">Results</a>
+        </nav>
+
         <main>
-            <!-- URL Section -->
-            <section class="card">
-                <h2>Video URL</h2>
-                <div class="input-group">
-                    <input type="text" id="urlInput" placeholder="Paste video URL here..." />
-                    <button id="getInfoBtn" class="btn secondary">Get Info</button>
-                </div>
-                <div id="infoPanel" class="info-panel hidden">
-                    <div class="info-grid">
-                        <div><strong>Title:</strong> <span id="infoTitle">-</span></div>
-                        <div><strong>Channel:</strong> <span id="infoChannel">-</span></div>
-                        <div><strong>Duration:</strong> <span id="infoDuration">-</span></div>
-                        <div><strong>H.264 MP4 heights:</strong> <span id="infoHeights">-</span></div>
+            <!-- Job Status -->
+            <section id="status" class="card job-card hidden">
+                <div class="job-header">
+                    <div>
+                        <h2>Status</h2>
+                        <p id="jobMessage" class="job-message">Ready</p>
                     </div>
-                </div>
-            </section>
-
-            <!-- Options Section -->
-            <section class="card">
-                <h2>Options</h2>
-                <div class="options-grid">
-                    <div class="form-group">
-                        <label for="qualitySelect">Quality</label>
-                        <select id="qualitySelect">
-                            <option value="360">360p</option>
-                            <option value="480" selected>480p</option>
-                            <option value="720">720p</option>
-                            <option value="1080">1080p</option>
-                            <option value="custom">Custom height...</option>
-                        </select>
-                        <input type="number" id="customHeight" class="hidden" placeholder="Height in pixels" min="1" />
-                    </div>
-
-                    <div class="form-group">
-                        <label for="formatSelect">Format</label>
-                        <select id="formatSelect">
-                            <option value="mp4" selected>MP4</option>
-                            <option value="mkv">MKV</option>
-                            <option value="webm">WebM</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="modeSelect">Clipping Mode</label>
-                        <select id="modeSelect">
-                            <option value="fast" selected>Fast (stream copy)</option>
-                            <option value="precise">Precise (re-encode)</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="audioFormatSelect">Audio Only Format</label>
-                        <select id="audioFormatSelect">
-                            <option value="" selected>— (video with audio) —</option>
-                            <option value="mp3">MP3</option>
-                            <option value="wav">WAV</option>
-                            <option value="aac">AAC</option>
-                            <option value="ogg">OGG</option>
-                            <option value="flac">FLAC</option>
-                        </select>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Clips Section -->
-            <section class="card">
-                <h2>Clips <button id="addClipBtn" class="btn small">+ Add Clip</button></h2>
-                <div id="clipsContainer">
-                    <div class="clip-row" data-index="0">
-                        <div class="time-input">
-                            <label>Start</label>
-                            <input type="text" class="start-time" placeholder="mm:ss or seconds" />
-                        </div>
-                        <div class="time-input">
-                            <label>End</label>
-                            <input type="text" class="end-time" placeholder="mm:ss or seconds" />
-                        </div>
-                        <button class="btn icon remove-clip" title="Remove clip">×</button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Output Section -->
-            <section class="card">
-                <h2>Output</h2>
-                <div class="form-group">
-                    <label for="outdirInput">Output Directory</label>
-                    <div class="input-group">
-                        <input type="text" id="outdirInput" value="./clips" placeholder="./clips" />
-                        <button id="browseBtn" class="btn secondary">Browse</button>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="prefixInput">Filename Prefix (optional)</label>
-                    <input type="text" id="prefixInput" placeholder="my_clip_" />
-                </div>
-            </section>
-
-            <!-- Audio Overlay Section -->
-            <section class="card">
-                <h2>🎵 Audio Overlay</h2>
-                <p class="help-text">Overlay an audio track onto a video. Audio will be trimmed to video length with a fade-out.</p>
-                <div class="form-group">
-                    <label for="overlayVideoInput">Video File</label>
-                    <input type="file" id="overlayVideoInput" accept="video/*" />
-                </div>
-                <div class="form-group">
-                    <label for="overlayAudioInput">Audio File</label>
-                    <input type="file" id="overlayAudioInput" accept="audio/*" />
-                </div>
-                <div class="form-group">
-                    <label for="overlayFadeInput">Fade Out Duration (seconds)</label>
-                    <input type="range" id="overlayFadeInput" min="0" max="5" step="0.5" value="3" />
-                    <span id="overlayFadeValue">3s</span>
-                </div>
-                <button id="overlayBtn" class="btn secondary">🎬 Overlay Audio</button>
-            </section>
-
-            <!-- De-noise Section -->
-            <section class="card">
-                <h2>🔇 De-noise</h2>
-                <p class="help-text">Reduce background noise in a video's audio using FFT denoising.</p>
-                <div class="form-group">
-                    <label for="denoiseVideoInput">Video File</label>
-                    <input type="file" id="denoiseVideoInput" accept="video/*" />
-                </div>
-                <div class="form-group">
-                    <label for="denoiseStrengthInput">Noise Reduction Strength</label>
-                    <input type="range" id="denoiseStrengthInput" min="0" max="100" step="5" value="50" />
-                    <span id="denoiseStrengthValue">50%</span>
-                </div>
-                <button id="denoiseBtn" class="btn secondary">🔇 De-noise Video</button>
-            </section>
-
-            <!-- Captions Section -->
-            <section class="card">
-                <h2>💬 Captions</h2>
-                <p class="help-text">Burn subtitles/captions into a video. Supports SRT, VTT, and ASS subtitle files.</p>
-                <div class="form-group">
-                    <label for="captionsVideoInput">Video File</label>
-                    <input type="file" id="captionsVideoInput" accept="video/*" />
-                </div>
-                <div class="form-group">
-                    <label for="captionsSubtitleInput">Subtitle File (SRT, VTT, ASS)</label>
-                    <input type="file" id="captionsSubtitleInput" accept=".srt,.vtt,.ass" />
-                </div>
-                <div class="form-group">
-                    <label for="captionsFontSizeInput">Font Size</label>
-                    <input type="range" id="captionsFontSizeInput" min="12" max="48" step="2" value="18" />
-                    <span id="captionsFontSizeValue">18px</span>
-                </div>
-                <div class="form-group">
-                    <label for="captionsBgColorInput">Background Color</label>
-                    <select id="captionsBgColorInput">
-                        <option value="#000000" selected>Black (semi-transparent)</option>
-                        <option value="#00000000">Transparent</option>
-                        <option value="#80000000">Dark Gray</option>
-                        <option value="#40000000">Light Gray</option>
-                        <option value="#66000000">Medium Gray</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="captionsPositionInput">Position</label>
-                    <select id="captionsPositionInput">
-                        <option value="bottom" selected>Bottom</option>
-                        <option value="top">Top</option>
-                        <option value="center">Center</option>
-                    </select>
-                </div>
-                <button id="captionsBtn" class="btn secondary">💬 Add Captions</button>
-            </section>
-
-            <!-- Action Section -->
-            <section class="card action-card">
-                <div class="action-buttons">
-                    <button id="generateBtn" class="btn primary large">🎬 Generate Clips</button>
-                    <button id="downloadAudioBtn" class="btn secondary large">🎵 Download Audio</button>
+                    <div class="job-pill" id="jobPill">Idle</div>
                 </div>
                 <div id="progressContainer" class="progress-container hidden">
                     <div class="progress-bar">
@@ -200,8 +46,255 @@
                 </div>
             </section>
 
+            <!-- Video Clipper Workflow -->
+            <section id="clipper" class="card workflow">
+                <div class="workflow-header">
+                    <h2>Video Clipper</h2>
+                    <p class="subtitle">Download and generate video clips in a single click.</p>
+                </div>
+                <div class="workflow-body">
+                    <!-- Source Section -->
+                    <section id="source" class="subcard">
+                        <h3>Source</h3>
+                        <div class="source-toggle">
+                            <label><input type="radio" name="sourceType" value="url" checked /> URL</label>
+                            <label><input type="radio" name="sourceType" value="local" /> Local File</label>
+                        </div>
+                        <div id="urlSource" class="source-panel">
+                            <div class="input-group">
+                                <input type="text" id="urlInput" placeholder="Paste video URL here..." />
+                                <button id="getInfoBtn" class="btn secondary">Get Info</button>
+                            </div>
+                        </div>
+                        <div id="localSource" class="source-panel hidden">
+                            <div class="form-group">
+                                <label for="localFileInput">Upload Video File</label>
+                                <input type="file" id="localFileInput" accept="video/*" />
+                            </div>
+                            <div class="form-group">
+                                <label for="localPathInput">Or Local File Path</label>
+                                <input type="text" id="localPathInput" placeholder="/Users/you/video.mp4" />
+                                <p class="help-text">Path must be accessible to the local server.</p>
+                            </div>
+                            <button id="getLocalInfoBtn" class="btn secondary">Get Info</button>
+                        </div>
+                        <div id="infoPanel" class="info-panel hidden">
+                            <div class="info-grid">
+                                <div><strong>Title:</strong> <span id="infoTitle">-</span></div>
+                                <div><strong>Channel:</strong> <span id="infoChannel">-</span></div>
+                                <div><strong>Duration:</strong> <span id="infoDuration">-</span></div>
+                                <div><strong>H.264 MP4 heights:</strong> <span id="infoHeights">-</span></div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Options Section -->
+                    <section id="options" class="subcard">
+                        <h3>Options</h3>
+                        <div class="options-grid">
+                            <div class="form-group">
+                                <label for="qualitySelect">Quality</label>
+                                <select id="qualitySelect">
+                                    <option value="360">360p</option>
+                                    <option value="480" selected>480p</option>
+                                    <option value="720">720p</option>
+                                    <option value="1080">1080p</option>
+                                    <option value="custom">Custom height...</option>
+                                </select>
+                                <input type="number" id="customHeight" class="hidden" placeholder="Height in pixels" min="1" />
+                            </div>
+
+                            <div class="form-group">
+                                <label for="formatSelect">Format</label>
+                                <select id="formatSelect">
+                                    <option value="mp4" selected>MP4</option>
+                                    <option value="mkv">MKV</option>
+                                    <option value="webm">WebM</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="modeSelect">Clipping Mode</label>
+                                <select id="modeSelect">
+                                    <option value="fast" selected>Fast (stream copy)</option>
+                                    <option value="precise">Precise (re-encode)</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="audioFormatSelect">Audio Only Format</label>
+                                <select id="audioFormatSelect">
+                                    <option value="" selected>— (video with audio) —</option>
+                                    <option value="mp3">MP3</option>
+                                    <option value="wav">WAV</option>
+                                    <option value="aac">AAC</option>
+                                    <option value="ogg">OGG</option>
+                                    <option value="flac">FLAC</option>
+                                </select>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Clips Section -->
+                    <section id="clips" class="subcard">
+                        <h3>Clips <button id="addClipBtn" class="btn small">+ Add Clip</button></h3>
+                        <div id="clipsContainer">
+                            <div class="clip-row" data-index="0">
+                                <div class="time-input">
+                                    <label>Start</label>
+                                    <input type="text" class="start-time" placeholder="mm:ss or seconds" />
+                                </div>
+                                <div class="time-input">
+                                    <label>End</label>
+                                    <input type="text" class="end-time" placeholder="mm:ss or seconds" />
+                                </div>
+                                <button class="btn icon remove-clip" title="Remove clip">×</button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Output Section -->
+                    <section id="output" class="subcard">
+                        <h3>Output</h3>
+                        <div class="form-group">
+                            <label for="outdirInput">Output Directory</label>
+                            <div class="input-group">
+                                <input type="text" id="outdirInput" value="./clips" placeholder="./clips" />
+                                <button id="browseBtn" class="btn secondary">Browse</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="prefixInput">Filename Prefix (optional)</label>
+                            <input type="text" id="prefixInput" placeholder="my_clip_" />
+                        </div>
+                    </section>
+
+                    <section id="actions" class="subcard action-card">
+                        <div class="action-buttons">
+                            <button id="generateBtn" class="btn primary large">🎬 Generate Clips</button>
+                            <button id="downloadAudioBtn" class="btn secondary large">🎵 Download Audio</button>
+                        </div>
+                    </section>
+                </div>
+            </section>
+
+            <!-- Enhance Section -->
+            <section id="enhance" class="card">
+                <h2>Enhance</h2>
+                <details class="accordion" open>
+                    <summary>🎵 Audio Overlay</summary>
+                    <p class="help-text">Overlay an audio track onto a video. Audio will be trimmed to video length with a fade-out.</p>
+                    <div class="form-group">
+                        <label for="overlayVideoInput">Video File</label>
+                        <input type="file" id="overlayVideoInput" accept="video/*" />
+                    </div>
+                    <div class="form-group">
+                        <label for="overlayAudioInput">Audio File</label>
+                        <input type="file" id="overlayAudioInput" accept="audio/*" />
+                    </div>
+                    <div class="form-group">
+                        <label for="overlayFadeInput">Fade Out Duration (seconds)</label>
+                        <input type="range" id="overlayFadeInput" min="0" max="5" step="0.5" value="3" />
+                        <span id="overlayFadeValue">3s</span>
+                    </div>
+                    <button id="overlayBtn" class="btn secondary">🎬 Overlay Audio</button>
+                </details>
+
+                <details class="accordion">
+                    <summary>🔇 De-noise</summary>
+                    <p class="help-text">Reduce background noise in a video's audio using FFT denoising.</p>
+                    <div class="form-group">
+                        <label for="denoiseVideoInput">Video File</label>
+                        <input type="file" id="denoiseVideoInput" accept="video/*" />
+                    </div>
+                    <div class="form-group">
+                        <label for="denoiseStrengthInput">Noise Reduction Strength</label>
+                        <input type="range" id="denoiseStrengthInput" min="0" max="100" step="5" value="50" />
+                        <span id="denoiseStrengthValue">50%</span>
+                    </div>
+                    <button id="denoiseBtn" class="btn secondary">🔇 De-noise Video</button>
+                </details>
+
+                <details class="accordion">
+                    <summary>💬 Captions</summary>
+                    <p class="help-text">Burn subtitles/captions into a video. Supports SRT, VTT, and ASS subtitle files.</p>
+                    <div class="form-group">
+                        <label for="captionsVideoInput">Video File</label>
+                        <input type="file" id="captionsVideoInput" accept="video/*" />
+                    </div>
+                    <div class="form-group">
+                        <label for="captionsSubtitleInput">Subtitle File (SRT, VTT, ASS)</label>
+                        <input type="file" id="captionsSubtitleInput" accept=".srt,.vtt,.ass" />
+                    </div>
+                    <div class="form-group">
+                        <label for="captionsFontSizeInput">Font Size</label>
+                        <input type="range" id="captionsFontSizeInput" min="12" max="48" step="2" value="18" />
+                        <span id="captionsFontSizeValue">18px</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="captionsBgColorInput">Background Color</label>
+                        <select id="captionsBgColorInput">
+                            <option value="#000000" selected>Black (semi-transparent)</option>
+                            <option value="#00000000">Transparent</option>
+                            <option value="#80000000">Dark Gray</option>
+                            <option value="#40000000">Light Gray</option>
+                            <option value="#66000000">Medium Gray</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="captionsPositionInput">Position</label>
+                        <select id="captionsPositionInput">
+                            <option value="bottom" selected>Bottom</option>
+                            <option value="top">Top</option>
+                            <option value="center">Center</option>
+                        </select>
+                    </div>
+                    <button id="captionsBtn" class="btn secondary">💬 Add Captions</button>
+                </details>
+            </section>
+
+            <!-- Compress Section -->
+            <section id="compress" class="card">
+                <h2>📦 Compress</h2>
+                <p class="help-text">Compress a local video to reduce file size.</p>
+                <div class="form-group">
+                    <label for="compressVideoInput">Video File</label>
+                    <input type="file" id="compressVideoInput" accept="video/*" />
+                </div>
+                <div class="form-group">
+                    <label for="compressPathInput">Or Local File Path</label>
+                    <input type="text" id="compressPathInput" placeholder="/Users/you/video.mp4" />
+                </div>
+                <div class="form-group">
+                    <label for="compressCrfInput">CRF (quality)</label>
+                    <input type="range" id="compressCrfInput" min="18" max="35" step="1" value="28" />
+                    <span id="compressCrfValue">28</span>
+                    <p class="help-text">Higher CRF = lower quality, smaller file size.</p>
+                </div>
+                <div class="form-group">
+                    <label for="compressPresetSelect">Preset</label>
+                    <select id="compressPresetSelect">
+                        <option value="veryfast">Very Fast</option>
+                        <option value="fast">Fast</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="slow">Slow</option>
+                    </select>
+                    <p class="help-text">Preset: faster = bigger files.</p>
+                </div>
+                <div class="form-group">
+                    <label for="compressHeightInput">Max Height (optional)</label>
+                    <input type="number" id="compressHeightInput" placeholder="e.g., 720" min="1" />
+                </div>
+                <div class="form-group">
+                    <label for="compressOutdirInput">Output Directory</label>
+                    <input type="text" id="compressOutdirInput" value="./compressed" />
+                </div>
+                <button id="compressBtn" class="btn secondary">📦 Compress Video</button>
+            </section>
+
+            <!-- Action Section -->
             <!-- Results Section -->
-            <section id="resultsSection" class="card hidden">
+            <section id="results" class="card hidden">
                 <h2>Results</h2>
                 <div id="resultsList"></div>
             </section>
@@ -212,6 +305,6 @@
         </footer>
     </div>
 
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=20250205b"></script>
 </body>
 </html>

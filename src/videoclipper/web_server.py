@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, File, Form, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -16,10 +16,13 @@ from .clipper import (
     ClipperError,
     burn_captions,
     clip_source,
+    clip_url,
     denoise_video,
     download_audio,
     download_url,
+    get_local_info,
     get_info,
+    compress_video,
     overlay_audio,
     parse_clip_ranges,
     parse_time,
@@ -49,6 +52,22 @@ def _generate_job_id() -> str:
     return str(uuid.uuid4())[:8]
 
 
+def _parse_bool(value: str | bool | None, default: bool = False) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+async def _save_upload(upload: UploadFile, workdir: Path) -> Path:
+    workdir.mkdir(parents=True, exist_ok=True)
+    destination = workdir / upload.filename
+    with open(destination, "wb") as handle:
+        handle.write(await upload.read())
+    return destination
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index() -> str:
     """Serve the main HTML page."""
@@ -74,6 +93,29 @@ async def api_info(url: str) -> dict:
     """Get video metadata and available qualities."""
     try:
         info = get_info(url)
+        return {"success": True, **info}
+    except ClipperError as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@app.post("/api/info_local")
+async def api_info_local(
+    video: UploadFile | None = File(None),
+    path: str | None = Form(None),
+) -> dict:
+    """Get metadata for a local file (upload or path)."""
+    try:
+        if video is not None:
+            import tempfile
+
+            with tempfile.TemporaryDirectory(prefix="videoclipper_info_") as tmp:
+                workdir = Path(tmp)
+                video_path = await _save_upload(video, workdir)
+                info = get_local_info(video_path)
+        elif path:
+            info = get_local_info(Path(path))
+        else:
+            raise ClipperError("Provide a local file upload or path.")
         return {"success": True, **info}
     except ClipperError as exc:
         return {"success": False, "error": str(exc)}
@@ -221,6 +263,97 @@ async def api_captions(
             return {"success": False, "error": str(exc)}
 
 
+@app.post("/api/clip_local")
+async def api_clip_local(
+    video: UploadFile | None = File(None),
+    path: str | None = Form(None),
+    clips: str = Form(""),
+    outdir: str = Form("clips"),
+    reencode: str | bool | None = Form(False),
+    output_format: str = Form("mp4"),
+) -> dict:
+    """Generate clips from a local video file (upload or path)."""
+    try:
+        ranges = parse_clip_ranges(clips)
+        outdir_path = Path(outdir)
+        outdir_path.mkdir(parents=True, exist_ok=True)
+        output_format = output_format.strip().lstrip(".") or "mp4"
+        if video is not None:
+            import tempfile
+
+            with tempfile.TemporaryDirectory(prefix="videoclipper_clip_", dir=outdir_path) as tmp:
+                workdir = Path(tmp)
+                video_path = await _save_upload(video, workdir)
+                outputs = clip_source(
+                    source=video_path,
+                    ranges=ranges,
+                    outdir=outdir_path,
+                    reencode=_parse_bool(reencode),
+                    output_format=output_format,
+                )
+        elif path:
+            outputs = clip_source(
+                source=Path(path),
+                ranges=ranges,
+                outdir=outdir_path,
+                reencode=_parse_bool(reencode),
+                output_format=output_format,
+            )
+        else:
+            raise ClipperError("Provide a local file upload or path.")
+
+        return {"success": True, "paths": [str(p) for p in outputs]}
+    except ClipperError as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@app.post("/api/compress")
+async def api_compress(
+    video: UploadFile | None = File(None),
+    path: str | None = Form(None),
+    outdir: str = Form("compressed"),
+    crf: int = Form(28),
+    preset: str = Form("medium"),
+    height: str | None = Form(None),
+    output_format: str = Form("mp4"),
+) -> dict:
+    """Compress a local video file (upload or path)."""
+    try:
+        outdir_path = Path(outdir)
+        outdir_path.mkdir(parents=True, exist_ok=True)
+        output_format = output_format.strip().lstrip(".") or "mp4"
+        height_value = int(height) if height else None
+        if video is not None:
+            import tempfile
+
+            with tempfile.TemporaryDirectory(prefix="videoclipper_compress_", dir=outdir_path) as tmp:
+                workdir = Path(tmp)
+                video_path = await _save_upload(video, workdir)
+                output = compress_video(
+                    video_path=video_path,
+                    outdir=outdir_path,
+                    crf=int(crf),
+                    preset=preset,
+                    height=height_value,
+                    output_format=output_format,
+                )
+        elif path:
+            output = compress_video(
+                video_path=Path(path),
+                outdir=outdir_path,
+                crf=int(crf),
+                preset=preset,
+                height=height_value,
+                output_format=output_format,
+            )
+        else:
+            raise ClipperError("Provide a local file upload or path.")
+
+        return {"success": True, "path": str(output)}
+    except (ClipperError, ValueError) as exc:
+        return {"success": False, "error": str(exc)}
+
+
 @app.post("/api/clip")
 async def api_clip(data: dict) -> dict:
     """Generate clips from a URL."""
@@ -233,13 +366,24 @@ async def api_clip(data: dict) -> dict:
 
     try:
         ranges = parse_clip_ranges(clips_str)
-        outputs = clip_source(
-            source=Path(url),  # This won't work for URLs - need to download first
-            ranges=ranges,
-            outdir=outdir,
-            reencode=reencode,
-            output_format=output_format,
-        )
+        source_path = Path(url)
+        if source_path.exists():
+            outputs = clip_source(
+                source=source_path,
+                ranges=ranges,
+                outdir=outdir,
+                reencode=reencode,
+                output_format=output_format,
+            )
+        else:
+            outputs = clip_url(
+                url=url,
+                ranges=ranges,
+                outdir=outdir,
+                reencode=reencode,
+                output_format=output_format,
+                quality_height=quality_height,
+            )
         return {"success": True, "paths": [str(p) for p in outputs]}
     except ClipperError as exc:
         return {"success": False, "error": str(exc)}

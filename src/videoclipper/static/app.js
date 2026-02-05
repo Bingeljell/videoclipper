@@ -5,11 +5,20 @@
 // DOM Elements
 const urlInput = document.getElementById('urlInput');
 const getInfoBtn = document.getElementById('getInfoBtn');
+const getLocalInfoBtn = document.getElementById('getLocalInfoBtn');
 const infoPanel = document.getElementById('infoPanel');
 const infoTitle = document.getElementById('infoTitle');
 const infoChannel = document.getElementById('infoChannel');
 const infoDuration = document.getElementById('infoDuration');
 const infoHeights = document.getElementById('infoHeights');
+const statusPill = document.getElementById('statusPill');
+const jobCard = document.getElementById('status');
+const jobMessage = document.getElementById('jobMessage');
+const jobPill = document.getElementById('jobPill');
+const localFileInput = document.getElementById('localFileInput');
+const localPathInput = document.getElementById('localPathInput');
+const urlSource = document.getElementById('urlSource');
+const localSource = document.getElementById('localSource');
 
 const qualitySelect = document.getElementById('qualitySelect');
 const customHeight = document.getElementById('customHeight');
@@ -49,7 +58,16 @@ const captionsBgColorInput = document.getElementById('captionsBgColorInput');
 const captionsPositionInput = document.getElementById('captionsPositionInput');
 const captionsBtn = document.getElementById('captionsBtn');
 
-const resultsSection = document.getElementById('resultsSection');
+const compressVideoInput = document.getElementById('compressVideoInput');
+const compressPathInput = document.getElementById('compressPathInput');
+const compressCrfInput = document.getElementById('compressCrfInput');
+const compressCrfValue = document.getElementById('compressCrfValue');
+const compressPresetSelect = document.getElementById('compressPresetSelect');
+const compressHeightInput = document.getElementById('compressHeightInput');
+const compressOutdirInput = document.getElementById('compressOutdirInput');
+const compressBtn = document.getElementById('compressBtn');
+
+const resultsSection = document.getElementById('results');
 const resultsList = document.getElementById('resultsList');
 
 // WebSocket
@@ -61,10 +79,15 @@ function init() {
     setupEventListeners();
     setupQualityToggle();
     setupClipsContainer();
+    setupSourceToggle();
+    setStatus('idle', 'Ready');
 }
 
 function setupEventListeners() {
     getInfoBtn.addEventListener('click', handleGetInfo);
+    if (getLocalInfoBtn) {
+        getLocalInfoBtn.addEventListener('click', handleGetInfo);
+    }
     addClipBtn.addEventListener('click', addClipRow);
     generateBtn.addEventListener('click', handleGenerate);
     downloadAudioBtn.addEventListener('click', handleDownloadAudio);
@@ -87,6 +110,36 @@ function setupEventListeners() {
         captionsFontSizeValue.textContent = e.target.value + 'px';
     });
     captionsBtn.addEventListener('click', handleCaptions);
+
+    if (compressCrfInput) {
+        compressCrfInput.addEventListener('input', (e) => {
+            compressCrfValue.textContent = e.target.value;
+        });
+    }
+    if (compressBtn) {
+        compressBtn.addEventListener('click', handleCompress);
+    }
+}
+
+function setupSourceToggle() {
+    const radios = document.querySelectorAll('input[name="sourceType"]');
+    radios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            const sourceType = getSourceType();
+            if (sourceType === 'local') {
+                urlSource.classList.add('hidden');
+                localSource.classList.remove('hidden');
+            } else {
+                localSource.classList.add('hidden');
+                urlSource.classList.remove('hidden');
+            }
+        });
+    });
+}
+
+function getSourceType() {
+    const selected = document.querySelector('input[name="sourceType"]:checked');
+    return selected ? selected.value : 'url';
 }
 
 function setupQualityToggle() {
@@ -116,6 +169,36 @@ function setupClipsContainer() {
     });
 }
 
+function setStatus(state, message) {
+    if (!statusPill || !jobPill || !jobMessage) return;
+    statusPill.className = `status-pill ${state}`;
+    jobPill.className = `job-pill ${state}`;
+    statusPill.textContent = state === 'working' ? 'Working' : state === 'error' ? 'Error' : 'Idle';
+    jobPill.textContent = statusPill.textContent;
+    if (message) {
+        jobMessage.textContent = message;
+    }
+}
+
+function startTask(message) {
+    if (jobCard) jobCard.classList.remove('hidden');
+    if (progressContainer) progressContainer.classList.remove('hidden');
+    progressFill.classList.remove('complete', 'error');
+    updateProgress(5, message || 'Working...');
+    setStatus('working', message || 'Working...');
+}
+
+function finishTask(message) {
+    updateProgress(100, message || 'Complete');
+    progressFill.classList.add('complete');
+    setStatus('idle', 'Ready');
+}
+
+function failTask(message) {
+    progressFill.classList.add('error');
+    setStatus('error', message || 'Error');
+}
+
 function addClipRow() {
     const row = document.createElement('div');
     row.className = 'clip-row';
@@ -134,17 +217,41 @@ function addClipRow() {
 }
 
 async function handleGetInfo() {
-    const url = urlInput.value.trim();
-    if (!url) {
-        showError('Please enter a URL');
-        return;
+    const sourceType = getSourceType();
+    const button = sourceType === 'local' ? getLocalInfoBtn : getInfoBtn;
+    if (button) {
+        button.disabled = true;
+        button.textContent = 'Loading...';
     }
 
-    getInfoBtn.disabled = true;
-    getInfoBtn.textContent = 'Loading...';
-
     try {
-        const response = await fetch(`/api/info?url=${encodeURIComponent(url)}`);
+        let response = null;
+        if (sourceType === 'local') {
+            const file = localFileInput?.files?.[0];
+            const pathValue = localPathInput?.value?.trim() || '';
+            if (!file && !pathValue) {
+                showError('Please select a file or enter a local path');
+                return;
+            }
+            const formData = new FormData();
+            if (file) {
+                formData.append('video', file);
+            } else {
+                formData.append('path', pathValue);
+            }
+            response = await fetch('/api/info_local', {
+                method: 'POST',
+                body: formData
+            });
+        } else {
+            const url = urlInput.value.trim();
+            if (!url) {
+                showError('Please enter a URL');
+                return;
+            }
+            response = await fetch(`/api/info?url=${encodeURIComponent(url)}`);
+        }
+
         const data = await response.json();
 
         if (data.success) {
@@ -153,14 +260,17 @@ async function handleGetInfo() {
             infoDuration.textContent = data.duration_text || 'Unknown';
             infoHeights.textContent = data.h264_heights?.join(', ') || 'None';
             infoPanel.classList.remove('hidden');
+            setStatus('idle', 'Info loaded');
         } else {
             showError(data.error || 'Failed to get info');
         }
     } catch (err) {
         showError('Network error: ' + err.message);
     } finally {
-        getInfoBtn.disabled = false;
-        getInfoBtn.textContent = 'Get Info';
+        if (button) {
+            button.disabled = false;
+            button.textContent = 'Get Info';
+        }
     }
 }
 
@@ -188,11 +298,7 @@ function collectClips() {
 }
 
 async function handleGenerate() {
-    const url = urlInput.value.trim();
-    if (!url) {
-        showError('Please enter a URL');
-        return;
-    }
+    const sourceType = getSourceType();
 
     const clips = collectClips();
     if (!clips) {
@@ -203,9 +309,21 @@ async function handleGenerate() {
     // Reset UI
     resultsSection.classList.add('hidden');
     resultsList.innerHTML = '';
-    progressContainer.classList.remove('hidden');
     setButtonsDisabled(true);
     generateBtn.textContent = 'Processing...';
+    startTask('Preparing clips...');
+
+    if (sourceType === 'local') {
+        await handleGenerateLocal(clips);
+        return;
+    }
+
+    const url = urlInput.value.trim();
+    if (!url) {
+        showError('Please enter a URL');
+        resetButtons();
+        return;
+    }
 
     // Connect WebSocket
     connectWebSocket();
@@ -221,7 +339,7 @@ async function handleGenerate() {
                 reencode: modeSelect.value === 'precise',
                 format: formatSelect.value
             };
-            
+
             ws.send(JSON.stringify({
                 action: 'start_clip',
                 params: params
@@ -233,7 +351,57 @@ async function handleGenerate() {
     }, 500);
 }
 
+async function handleGenerateLocal(clips) {
+    const file = localFileInput?.files?.[0];
+    const pathValue = localPathInput?.value?.trim() || '';
+    if (!file && !pathValue) {
+        showError('Please select a file or enter a local path');
+        resetButtons();
+        return;
+    }
+
+    updateProgress(10, 'Preparing local clip...');
+
+    try {
+        const formData = new FormData();
+        if (file) {
+            formData.append('video', file);
+        } else {
+            formData.append('path', pathValue);
+        }
+        formData.append('clips', clips);
+        formData.append('outdir', outdirInput.value.trim() || './clips');
+        formData.append('reencode', modeSelect.value === 'precise');
+        formData.append('output_format', formatSelect.value);
+
+        updateProgress(30, 'Processing...');
+
+        const response = await fetch('/api/clip_local', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            finishTask('Complete');
+            showResults(data.paths || []);
+        } else {
+            failTask(data.error || 'Failed to generate clips');
+            showError(data.error || 'Failed to generate clips');
+        }
+    } catch (err) {
+        failTask('Network error');
+        showError('Network error: ' + err.message);
+    } finally {
+        resetButtons();
+    }
+}
+
 async function handleDownloadAudio() {
+    if (getSourceType() === 'local') {
+        showError('Audio download is only available for URL sources');
+        return;
+    }
     const url = urlInput.value.trim();
     if (!url) {
         showError('Please enter a URL');
@@ -249,10 +417,9 @@ async function handleDownloadAudio() {
     // Reset UI
     resultsSection.classList.add('hidden');
     resultsList.innerHTML = '';
-    progressContainer.classList.remove('hidden');
     setButtonsDisabled(true);
     downloadAudioBtn.textContent = 'Downloading...';
-    updateProgress(10, 'Downloading audio...');
+    startTask('Downloading audio...');
 
     try {
         const response = await fetch('/api/audio', {
@@ -268,15 +435,14 @@ async function handleDownloadAudio() {
         const data = await response.json();
         
         if (data.success) {
-            updateProgress(100, 'Complete!');
-            progressFill.classList.add('complete');
+            finishTask('Complete');
             showResults([data.path]);
         } else {
-            progressFill.classList.add('error');
+            failTask(data.error || 'Failed to download audio');
             showError(data.error || 'Failed to download audio');
         }
     } catch (err) {
-        progressFill.classList.add('error');
+        failTask('Network error');
         showError('Network error: ' + err.message);
     } finally {
         resetButtons();
@@ -299,10 +465,9 @@ async function handleOverlay() {
     // Reset UI
     resultsSection.classList.add('hidden');
     resultsList.innerHTML = '';
-    progressContainer.classList.remove('hidden');
     overlayBtn.disabled = true;
     overlayBtn.textContent = 'Processing...';
-    updateProgress(10, 'Uploading files...');
+    startTask('Uploading files...');
     
     try {
         const formData = new FormData();
@@ -320,15 +485,14 @@ async function handleOverlay() {
         const data = await response.json();
         
         if (data.success) {
-            updateProgress(100, 'Complete!');
-            progressFill.classList.add('complete');
+            finishTask('Complete');
             showResults([data.path]);
         } else {
-            progressFill.classList.add('error');
+            failTask(data.error || 'Failed to overlay audio');
             showError(data.error || 'Failed to overlay audio');
         }
     } catch (err) {
-        progressFill.classList.add('error');
+        failTask('Network error');
         showError('Network error: ' + err.message);
     } finally {
         overlayBtn.disabled = false;
@@ -347,10 +511,9 @@ async function handleDenoise() {
     // Reset UI
     resultsSection.classList.add('hidden');
     resultsList.innerHTML = '';
-    progressContainer.classList.remove('hidden');
     denoiseBtn.disabled = true;
     denoiseBtn.textContent = 'Processing...';
-    updateProgress(10, 'Uploading video...');
+    startTask('Uploading video...');
     
     try {
         const formData = new FormData();
@@ -368,15 +531,14 @@ async function handleDenoise() {
         const data = await response.json();
         
         if (data.success) {
-            updateProgress(100, 'Complete!');
-            progressFill.classList.add('complete');
+            finishTask('Complete');
             showResults([data.path]);
         } else {
-            progressFill.classList.add('error');
+            failTask(data.error || 'Failed to de-noise video');
             showError(data.error || 'Failed to de-noise video');
         }
     } catch (err) {
-        progressFill.classList.add('error');
+        failTask('Network error');
         showError('Network error: ' + err.message);
     } finally {
         denoiseBtn.disabled = false;
@@ -400,10 +562,9 @@ async function handleCaptions() {
     // Reset UI
     resultsSection.classList.add('hidden');
     resultsList.innerHTML = '';
-    progressContainer.classList.remove('hidden');
     captionsBtn.disabled = true;
     captionsBtn.textContent = 'Processing...';
-    updateProgress(10, 'Uploading files...');
+    startTask('Uploading files...');
     
     try {
         const formData = new FormData();
@@ -423,19 +584,71 @@ async function handleCaptions() {
         const data = await response.json();
         
         if (data.success) {
-            updateProgress(100, 'Complete!');
-            progressFill.classList.add('complete');
+            finishTask('Complete');
             showResults([data.path]);
         } else {
-            progressFill.classList.add('error');
+            failTask(data.error || 'Failed to add captions');
             showError(data.error || 'Failed to add captions');
         }
     } catch (err) {
-        progressFill.classList.add('error');
+        failTask('Network error');
         showError('Network error: ' + err.message);
     } finally {
         captionsBtn.disabled = false;
         captionsBtn.textContent = '💬 Add Captions';
+    }
+}
+
+async function handleCompress() {
+    const file = compressVideoInput?.files?.[0];
+    const pathValue = compressPathInput?.value?.trim() || '';
+    if (!file && !pathValue) {
+        showError('Please select a file or enter a local path');
+        return;
+    }
+
+    resultsSection.classList.add('hidden');
+    resultsList.innerHTML = '';
+    compressBtn.disabled = true;
+    compressBtn.textContent = 'Processing...';
+    startTask('Uploading video...');
+
+    try {
+        const formData = new FormData();
+        if (file) {
+            formData.append('video', file);
+        } else {
+            formData.append('path', pathValue);
+        }
+        formData.append('outdir', compressOutdirInput.value.trim() || './compressed');
+        formData.append('crf', compressCrfInput.value);
+        formData.append('preset', compressPresetSelect.value);
+        if (compressHeightInput.value) {
+            formData.append('height', compressHeightInput.value);
+        }
+        formData.append('output_format', 'mp4');
+
+        updateProgress(30, 'Compressing...');
+
+        const response = await fetch('/api/compress', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            finishTask('Complete');
+            showResults([data.path]);
+        } else {
+            failTask(data.error || 'Failed to compress video');
+            showError(data.error || 'Failed to compress video');
+        }
+    } catch (err) {
+        failTask('Network error');
+        showError('Network error: ' + err.message);
+    } finally {
+        compressBtn.disabled = false;
+        compressBtn.textContent = '📦 Compress Video';
     }
 }
 
@@ -469,7 +682,7 @@ function handleWebSocketMessage(data) {
     switch (data.type) {
         case 'job_started':
             currentJobId = data.job_id;
-            updateProgress(0, 'Starting...');
+            startTask('Starting...');
             break;
             
         case 'progress':
@@ -477,14 +690,13 @@ function handleWebSocketMessage(data) {
             break;
             
         case 'complete':
-            updateProgress(100, 'Complete!');
-            progressFill.classList.add('complete');
+            finishTask('Complete');
             showResults(data.outputs);
             resetButtons();
             break;
             
         case 'error':
-            progressFill.classList.add('error');
+            failTask(data.error);
             showError(data.error);
             resetButtons();
             break;
@@ -494,6 +706,9 @@ function handleWebSocketMessage(data) {
 function updateProgress(percent, message) {
     progressFill.style.width = `${percent}%`;
     progressText.textContent = message;
+    if (message) {
+        jobMessage.textContent = message;
+    }
 }
 
 function showResults(outputs) {
@@ -561,6 +776,7 @@ function showError(message) {
     
     // Auto-remove after 5 seconds
     setTimeout(() => error.remove(), 5000);
+    setStatus('error', message);
 }
 
 function escapeHtml(text) {

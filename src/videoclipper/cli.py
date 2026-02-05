@@ -9,9 +9,11 @@ from .clipper import (
     burn_captions,
     clip_source,
     clip_url,
+    compress_video,
     denoise_video,
     download_audio,
     download_url,
+    get_local_info,
     get_info,
     overlay_audio,
     parse_clip_ranges,
@@ -256,6 +258,41 @@ def _build_captions_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _build_compress_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="videoclipper compress",
+        description="Compress a local video to reduce file size.",
+    )
+    parser.add_argument("video", help="Path to video file")
+    parser.add_argument(
+        "--outdir",
+        default="compressed",
+        help="Directory to save output (default: ./compressed)",
+    )
+    parser.add_argument(
+        "--crf",
+        type=int,
+        default=28,
+        help="CRF quality (0-51, lower = higher quality, default: 28)",
+    )
+    parser.add_argument(
+        "--preset",
+        default="medium",
+        help="ffmpeg preset (e.g., veryfast, fast, medium, slow)",
+    )
+    parser.add_argument(
+        "--height",
+        type=int,
+        help="Optional output height (maintains aspect ratio)",
+    )
+    parser.add_argument(
+        "--format",
+        default="mp4",
+        help="Output container extension (default: mp4)",
+    )
+    return parser
+
+
 def _resolve_ranges(args: argparse.Namespace) -> list[tuple[int, int]]:
     if args.clips:
         if args.start or args.end:
@@ -345,6 +382,24 @@ def main(argv: list[str] | None = None) -> int:
         print(output)
         return 0
 
+    if argv and argv[0] == "compress":
+        parser = _build_compress_parser()
+        args = parser.parse_args(argv[1:])
+        try:
+            output = compress_video(
+                video_path=Path(args.video),
+                outdir=Path(args.outdir),
+                crf=args.crf,
+                preset=args.preset,
+                height=args.height,
+                output_format=args.format.strip().lstrip(".") or "mp4",
+            )
+        except ClipperError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        print(output)
+        return 0
+
     if argv and argv[0] == "download":
         parser = _build_download_parser()
         args = parser.parse_args(argv[1:])
@@ -390,7 +445,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.getinfo:
             if args.start or args.end or args.clips:
                 raise ClipperError("Use --getinfo without start/end or --clips.")
-            info = get_info(args.url)
+            source_path = Path(args.url)
+            if source_path.exists():
+                info = get_local_info(source_path)
+            else:
+                info = get_info(args.url)
             title = info["title"] or "unknown"
             channel = info["channel"] or "unknown"
             video_id = info["video_id"] or "unknown"
@@ -420,14 +479,24 @@ def main(argv: list[str] | None = None) -> int:
         output_format = args.format.strip().lstrip(".")
         if not output_format:
             raise ClipperError("Output format must be a non-empty extension.")
-        outputs = clip_url(
-            url=args.url,
-            ranges=ranges,
-            outdir=Path(args.outdir),
-            reencode=args.reencode,
-            output_format=output_format,
-            quality_height=args.quality_height,
-        )
+        source_path = Path(args.url)
+        if source_path.exists():
+            outputs = clip_source(
+                source=source_path,
+                ranges=ranges,
+                outdir=Path(args.outdir),
+                reencode=args.reencode,
+                output_format=output_format,
+            )
+        else:
+            outputs = clip_url(
+                url=args.url,
+                ranges=ranges,
+                outdir=Path(args.outdir),
+                reencode=args.reencode,
+                output_format=output_format,
+                quality_height=args.quality_height,
+            )
     except ClipperError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

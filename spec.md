@@ -12,7 +12,7 @@ MVP runs in CLI. Optional next step: local web UI.
 ## 2) MVP Feature Spec
 
 ### Inputs
-- Video URL (supported by `yt-dlp`).
+- Video URL (supported by `yt-dlp`) or local file path.
 - Clip ranges.
 
 Accepted formats: seconds (`120 150`), `mm:ss`, or `hh:mm:ss`.
@@ -38,6 +38,7 @@ Command pattern (example):
 
 ```bash
 videoclipper <url> <start> <end>
+videoclipper /path/to/video.mp4 <start> <end>
 ```
 
 Multi-clip (example):

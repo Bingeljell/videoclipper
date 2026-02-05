@@ -599,6 +599,7 @@ def download_audio(
 
 def _get_media_duration(path: Path) -> float:
     """Get the duration of a media file in seconds using ffprobe."""
+    _ensure_ffprobe()
     cmd = [
         "ffprobe",
         "-v",
@@ -736,6 +737,73 @@ def denoise_video(
     
     _run_command(cmd, "Failed to denoise video audio.")
     
+    return output_path
+
+
+def compress_video(
+    video_path: Path,
+    outdir: Path,
+    crf: int = 28,
+    preset: str = "medium",
+    height: int | None = None,
+    output_format: str = "mp4",
+) -> Path:
+    """Compress a local video using H.264 + AAC.
+
+    Args:
+        video_path: Path to the video file
+        outdir: Directory to save the output
+        crf: Quality factor (lower = higher quality, larger file). Typical 18-30.
+        preset: ffmpeg preset (e.g., veryfast, fast, medium, slow)
+        height: Optional output height (maintains aspect ratio)
+        output_format: Output container extension (default: mp4)
+    """
+    _ensure_ffmpeg()
+
+    if not video_path.exists():
+        raise ClipperError(f"Video file not found: {video_path}")
+    if not video_path.is_file():
+        raise ClipperError(f"Path is not a file: {video_path}")
+    if crf < 0 or crf > 51:
+        raise ClipperError("CRF must be between 0 and 51.")
+    if height is not None and height <= 0:
+        raise ClipperError("Height must be a positive integer.")
+
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    run_stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    base_name = _slugify(video_path.stem, 80) or "compressed"
+    output_path = outdir / f"{base_name}_compressed_{run_stamp}.{output_format}"
+
+    cmd = [
+        "ffmpeg",
+        "-hide_banner",
+        "-y",
+        "-i",
+        str(video_path),
+    ]
+    if height is not None:
+        cmd.extend(["-vf", f"scale=-2:{height}"])
+    cmd.extend(
+        [
+            "-c:v",
+            "libx264",
+            "-preset",
+            preset,
+            "-crf",
+            str(crf),
+            "-c:a",
+            "aac",
+            "-b:a",
+            "128k",
+            "-movflags",
+            "+faststart",
+            str(output_path),
+        ]
+    )
+
+    _run_command(cmd, "Failed to compress video.")
+
     return output_path
 
 

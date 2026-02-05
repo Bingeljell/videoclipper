@@ -27,6 +27,7 @@ videoclipper web
 
 Then open http://127.0.0.1:8000 in your browser. The web UI provides:
 - Paste URLs and preview video info
+- Clip local files via upload or local path
 - Add multiple clip ranges with visual feedback
 - Quality and format selection
 - Real-time progress updates
@@ -35,6 +36,7 @@ Then open http://127.0.0.1:8000 in your browser. The web UI provides:
 - **Audio Overlay**: Upload a video and audio file to combine them with automatic fade-out
 - **De-noise**: Upload a video to reduce background noise in the audio
 - **Captions**: Upload a video and subtitle file (SRT/VTT/ASS) to burn captions into the video
+- **Compress**: Upload a local video to reduce file size
 
 Options:
 ```bash
@@ -49,12 +51,14 @@ Single clip:
 videoclipper <url> <start> <end>
 videoclipper https://example.com/video 10 15
 videoclipper https://example.com/video 1:30 2:10
+videoclipper /path/to/video.mp4 10 15
 ```
 
 Get video metadata and available qualities:
 
 ```bash
 videoclipper <url> --getinfo
+videoclipper /path/to/video.mp4 --getinfo
 ```
 
 Multiple clips:
@@ -96,6 +100,13 @@ Burn captions/subtitles into video:
 ```bash
 videoclipper captions video.mp4 subtitles.srt
 videoclipper captions video.mp4 subtitles.srt --font-size 24 --position bottom --bg-color "#000000" --outdir ./output
+```
+
+Compress a local video:
+
+```bash
+videoclipper compress video.mp4 --crf 28 --preset medium --outdir ./compressed
+videoclipper compress video.mp4 --height 720 --crf 30 --outdir ./compressed
 ```
 
 Common options:

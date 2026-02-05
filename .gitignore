@@ -8,5 +8,6 @@ dist/
 clips/
 *.mp4
 fullvideos/
+compressed/
 audio/
 errors/
