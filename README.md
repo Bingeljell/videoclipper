@@ -5,9 +5,23 @@ Local CLI tool for downloading a video and generating short, timestamped clips f
 ## Requirements
 - Python 3.11+
 - `ffmpeg` available on PATH
-- `yt-dlp` available on PATH 
+- `yt-dlp` available on PATH
 
-## Setup
+## Install (recommended, no publishing)
+
+Install directly from GitHub using a tool runner:
+
+```bash
+uv tool install git+https://github.com/Bingeljell/videoclipper.git
+```
+
+Or with pipx:
+
+```bash
+pipx install git+https://github.com/Bingeljell/videoclipper.git
+```
+
+## Setup (for contributors)
 
 ```bash
 python -m venv .venv
