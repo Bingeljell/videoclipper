@@ -31,6 +31,8 @@ from .clipper import (
 # In-memory job tracking
 jobs: dict[str, dict[str, Any]] = {}
 
+BASE_DIR = Path("~/videoclipper").expanduser()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -58,6 +60,11 @@ def _parse_bool(value: str | bool | None, default: bool = False) -> bool:
     if isinstance(value, bool):
         return value
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _resolve_outdir(value: str | Path) -> Path:
+    path = value if isinstance(value, Path) else Path(value)
+    return path.expanduser()
 
 
 async def _save_upload(upload: UploadFile, workdir: Path) -> Path:
@@ -125,7 +132,7 @@ async def api_info_local(
 async def api_download(data: dict) -> dict:
     """Download a full video."""
     url = data.get("url", "")
-    outdir = Path(data.get("outdir", "fullvideos"))
+    outdir = _resolve_outdir(data.get("outdir", str(BASE_DIR / "fullvideos")))
     quality_height = data.get("quality_height", 480)
     reencode = data.get("reencode", False)
 
@@ -145,7 +152,7 @@ async def api_download(data: dict) -> dict:
 async def api_audio(data: dict) -> dict:
     """Download audio only as MP3."""
     url = data.get("url", "")
-    outdir = Path(data.get("outdir", "audio"))
+    outdir = _resolve_outdir(data.get("outdir", str(BASE_DIR / "audio")))
     output_format = data.get("format", "mp3").strip().lstrip(".") or "mp3"
 
     try:
@@ -168,7 +175,7 @@ async def api_overlay(
     """Overlay audio onto video with fade out."""
     import tempfile
     
-    outdir = Path("overlay")
+    outdir = BASE_DIR / "overlay"
     outdir.mkdir(parents=True, exist_ok=True)
     
     # Save uploaded files to temp directory
@@ -202,7 +209,7 @@ async def api_denoise(
     """Reduce background noise in video audio."""
     import tempfile
     
-    outdir = Path("denoised")
+    outdir = BASE_DIR / "denoised"
     outdir.mkdir(parents=True, exist_ok=True)
     
     # Save uploaded file to temp directory
@@ -235,7 +242,7 @@ async def api_captions(
     """Burn subtitles into video."""
     import tempfile
     
-    outdir = Path("captioned")
+    outdir = BASE_DIR / "captioned"
     outdir.mkdir(parents=True, exist_ok=True)
     
     # Save uploaded files to temp directory
@@ -268,14 +275,14 @@ async def api_clip_local(
     video: UploadFile | None = File(None),
     path: str | None = Form(None),
     clips: str = Form(""),
-    outdir: str = Form("clips"),
+    outdir: str = Form(str(BASE_DIR / "clips")),
     reencode: str | bool | None = Form(False),
     output_format: str = Form("mp4"),
 ) -> dict:
     """Generate clips from a local video file (upload or path)."""
     try:
         ranges = parse_clip_ranges(clips)
-        outdir_path = Path(outdir)
+        outdir_path = _resolve_outdir(outdir)
         outdir_path.mkdir(parents=True, exist_ok=True)
         output_format = output_format.strip().lstrip(".") or "mp4"
         if video is not None:
@@ -311,7 +318,7 @@ async def api_clip_local(
 async def api_compress(
     video: UploadFile | None = File(None),
     path: str | None = Form(None),
-    outdir: str = Form("compressed"),
+    outdir: str = Form(str(BASE_DIR / "compressed")),
     crf: int = Form(28),
     preset: str = Form("medium"),
     height: str | None = Form(None),
@@ -319,7 +326,7 @@ async def api_compress(
 ) -> dict:
     """Compress a local video file (upload or path)."""
     try:
-        outdir_path = Path(outdir)
+        outdir_path = _resolve_outdir(outdir)
         outdir_path.mkdir(parents=True, exist_ok=True)
         output_format = output_format.strip().lstrip(".") or "mp4"
         height_value = int(height) if height else None
@@ -359,7 +366,7 @@ async def api_clip(data: dict) -> dict:
     """Generate clips from a URL."""
     url = data.get("url", "")
     clips_str = data.get("clips", "")
-    outdir = Path(data.get("outdir", "clips"))
+    outdir = _resolve_outdir(data.get("outdir", str(BASE_DIR / "clips")))
     quality_height = data.get("quality_height", 480)
     reencode = data.get("reencode", False)
     output_format = data.get("format", "mp4").strip().lstrip(".") or "mp4"
@@ -430,7 +437,7 @@ async def _process_clip_job(
     """Process a clip job and send progress updates."""
     url = params.get("url", "")
     clips_str = params.get("clips", "")
-    outdir = Path(params.get("outdir", "clips"))
+    outdir = _resolve_outdir(params.get("outdir", str(BASE_DIR / "clips")))
     quality_height = params.get("quality_height", 480)
     reencode = params.get("reencode", False)
     output_format = params.get("format", "mp4").strip().lstrip(".") or "mp4"

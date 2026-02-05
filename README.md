@@ -84,8 +84,8 @@ videoclipper <url> --clips "10-30,1:20-1:45,00:10:00-00:10:30" --outdir ./clips
 Download once, clip many:
 
 ```bash
-videoclipper download <url> --720p --outdir ./fullvideos
-videoclipper clip ./fullvideos/<channel>_<title>.mp4 --clips "10-30,120-150"
+videoclipper download <url> --720p --outdir ~/videoclipper/fullvideos
+videoclipper clip ~/videoclipper/fullvideos/<channel>_<title>.mp4 --clips "10-30,120-150"
 ```
 
 Download audio only (as MP3):
@@ -124,7 +124,7 @@ videoclipper compress video.mp4 --height 720 --crf 30 --outdir ./compressed
 ```
 
 Common options:
-- `--outdir`: output directory (default: `./clips`).
+- `--outdir`: output directory (default: `~/videoclipper/clips`).
 - `--reencode`: frame-accurate clips (slower).
 - `--480p` / `--720p` / `--1080p` / `--360p`: choose source quality (default: `--480p`).
 - `--height 640`: choose an exact source height in pixels.
@@ -137,7 +137,8 @@ Common options:
 - If fast mode fails due to format mismatch, rerun with `--reencode` or choose a matching `--format`.
 - If the requested quality is unavailable, the CLI prints the available heights for the video.
 - Default output naming: `<channel>_<title>_<start>_<end>_<timestamp>.mp4` (sanitized ASCII).
-- Downloads default to `./fullvideos` with `<channel>_<title>.<ext>` (timestamp is appended if the name exists).
+- All outputs are saved under `~/videoclipper/` by default (clips, audio, compressed, etc.).
+- Downloads default to `~/videoclipper/fullvideos` with `<channel>_<title>.<ext>` (timestamp is appended if the name exists).
 - Use only with content you own or have permission to download.
 - Timestamps accept seconds, `mm:ss`, or `hh:mm:ss`.
 

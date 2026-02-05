@@ -21,6 +21,8 @@ from .clipper import (
 )
 from .web_server import run_server
 
+DEFAULT_BASE_DIR = Path("~/videoclipper").expanduser()
+
 
 def _add_quality_flags(parser: argparse.ArgumentParser) -> None:
     quality_group = parser.add_mutually_exclusive_group()
@@ -80,8 +82,8 @@ def _build_clip_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--outdir",
-        default="clips",
-        help="Directory to write clips (default: ./clips)",
+        default=str(DEFAULT_BASE_DIR / "clips"),
+        help="Directory to write clips (default: ~/videoclipper/clips)",
     )
     parser.add_argument(
         "--reencode",
@@ -111,8 +113,8 @@ def _build_local_clip_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--outdir",
-        default="clips",
-        help="Directory to write clips (default: ./clips)",
+        default=str(DEFAULT_BASE_DIR / "clips"),
+        help="Directory to write clips (default: ~/videoclipper/clips)",
     )
     parser.add_argument(
         "--reencode",
@@ -135,8 +137,8 @@ def _build_download_parser() -> argparse.ArgumentParser:
     parser.add_argument("url", help="Video URL")
     parser.add_argument(
         "--outdir",
-        default="fullvideos",
-        help="Directory to save full videos (default: ./fullvideos)",
+        default=str(DEFAULT_BASE_DIR / "fullvideos"),
+        help="Directory to save full videos (default: ~/videoclipper/fullvideos)",
     )
     parser.add_argument(
         "--reencode",
@@ -174,8 +176,8 @@ def _build_audio_parser() -> argparse.ArgumentParser:
     parser.add_argument("url", help="Video URL")
     parser.add_argument(
         "--outdir",
-        default="audio",
-        help="Directory to save audio files (default: ./audio)",
+        default=str(DEFAULT_BASE_DIR / "audio"),
+        help="Directory to save audio files (default: ~/videoclipper/audio)",
     )
     parser.add_argument(
         "--format",
@@ -194,8 +196,8 @@ def _build_overlay_parser() -> argparse.ArgumentParser:
     parser.add_argument("audio", help="Path to audio file")
     parser.add_argument(
         "--outdir",
-        default="overlay",
-        help="Directory to save output (default: ./overlay)",
+        default=str(DEFAULT_BASE_DIR / "overlay"),
+        help="Directory to save output (default: ~/videoclipper/overlay)",
     )
     parser.add_argument(
         "--fade",
@@ -214,8 +216,8 @@ def _build_denoise_parser() -> argparse.ArgumentParser:
     parser.add_argument("video", help="Path to video file")
     parser.add_argument(
         "--outdir",
-        default="denoised",
-        help="Directory to save output (default: ./denoised)",
+        default=str(DEFAULT_BASE_DIR / "denoised"),
+        help="Directory to save output (default: ~/videoclipper/denoised)",
     )
     parser.add_argument(
         "--strength",
@@ -235,8 +237,8 @@ def _build_captions_parser() -> argparse.ArgumentParser:
     parser.add_argument("subtitles", help="Path to subtitle file (SRT, VTT, ASS)")
     parser.add_argument(
         "--outdir",
-        default="captioned",
-        help="Directory to save output (default: ./captioned)",
+        default=str(DEFAULT_BASE_DIR / "captioned"),
+        help="Directory to save output (default: ~/videoclipper/captioned)",
     )
     parser.add_argument(
         "--font-size",
@@ -266,8 +268,8 @@ def _build_compress_parser() -> argparse.ArgumentParser:
     parser.add_argument("video", help="Path to video file")
     parser.add_argument(
         "--outdir",
-        default="compressed",
-        help="Directory to save output (default: ./compressed)",
+        default=str(DEFAULT_BASE_DIR / "compressed"),
+        help="Directory to save output (default: ~/videoclipper/compressed)",
     )
     parser.add_argument(
         "--crf",
@@ -324,7 +326,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             output = download_audio(
                 url=args.url,
-                outdir=Path(args.outdir),
+                outdir=Path(args.outdir).expanduser(),
                 output_format=args.format.strip().lstrip("."),
             )
         except ClipperError as exc:
@@ -340,7 +342,7 @@ def main(argv: list[str] | None = None) -> int:
             output = overlay_audio(
                 video_path=Path(args.video),
                 audio_path=Path(args.audio),
-                outdir=Path(args.outdir),
+                outdir=Path(args.outdir).expanduser(),
                 fade_duration=args.fade,
             )
         except ClipperError as exc:
@@ -355,7 +357,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             output = denoise_video(
                 video_path=Path(args.video),
-                outdir=Path(args.outdir),
+                outdir=Path(args.outdir).expanduser(),
                 strength=args.strength,
             )
         except ClipperError as exc:
@@ -371,7 +373,7 @@ def main(argv: list[str] | None = None) -> int:
             output = burn_captions(
                 video_path=Path(args.video),
                 subtitle_path=Path(args.subtitles),
-                outdir=Path(args.outdir),
+                outdir=Path(args.outdir).expanduser(),
                 font_size=args.font_size,
                 position=args.position,
                 bg_color=args.bg_color,
@@ -388,7 +390,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             output = compress_video(
                 video_path=Path(args.video),
-                outdir=Path(args.outdir),
+                outdir=Path(args.outdir).expanduser(),
                 crf=args.crf,
                 preset=args.preset,
                 height=args.height,
@@ -406,7 +408,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             output = download_url(
                 url=args.url,
-                outdir=Path(args.outdir),
+                outdir=Path(args.outdir).expanduser(),
                 reencode=args.reencode,
                 quality_height=args.quality_height,
             )
@@ -427,7 +429,7 @@ def main(argv: list[str] | None = None) -> int:
             outputs = clip_source(
                 source=Path(args.source),
                 ranges=ranges,
-                outdir=Path(args.outdir),
+                outdir=Path(args.outdir).expanduser(),
                 reencode=args.reencode,
                 output_format=output_format,
             )
@@ -484,7 +486,7 @@ def main(argv: list[str] | None = None) -> int:
             outputs = clip_source(
                 source=source_path,
                 ranges=ranges,
-                outdir=Path(args.outdir),
+                outdir=Path(args.outdir).expanduser(),
                 reencode=args.reencode,
                 output_format=output_format,
             )
@@ -492,7 +494,7 @@ def main(argv: list[str] | None = None) -> int:
             outputs = clip_url(
                 url=args.url,
                 ranges=ranges,
-                outdir=Path(args.outdir),
+                outdir=Path(args.outdir).expanduser(),
                 reencode=args.reencode,
                 output_format=output_format,
                 quality_height=args.quality_height,
