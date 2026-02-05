@@ -7,7 +7,12 @@ dist/
 *.egg-info/
 clips/
 *.mp4
+
+# Folders - local
 fullvideos/
 compressed/
 audio/
 errors/
+captioned/
+overlay/
+denoised/
