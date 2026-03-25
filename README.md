@@ -3,6 +3,7 @@
 Local CLI tool for downloading a video and generating short, timestamped clips from content you own or have rights to use.
 You can denoise, compress and even add captions. 
 
+# It now includes a web-ui for ease of use!
 
 ## Features
 - **Clip** - Easily clip a video based on timestamp straight from the source
