@@ -1,6 +1,15 @@
 # Video Shorts Clipper
 
 Local CLI tool for downloading a video and generating short, timestamped clips from content you own or have rights to use.
+You can denoise, compress and even add captions. 
+
+
+## Features
+- **Clip** - Easily clip a video based on timestamp straight from the source
+- **Get info** - Get downloadable info for videos from yt
+- **Compress** - Compress videos 
+- **De-noise** - Remove bg noise from a video
+- **Captions** - Add an SRT file and caption your videos
 
 ## Requirements
 - Python 3.11+
