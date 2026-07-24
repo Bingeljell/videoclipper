@@ -15,7 +15,11 @@ You can denoise, compress and even add captions.
 ## Requirements
 - Python 3.11+
 - `ffmpeg` available on PATH
-- `yt-dlp` available on PATH
+- `yt-dlp` available on PATH (install with `brew install yt-dlp`, `pipx install yt-dlp`, or `pip install yt-dlp`)
+
+If a URL fails with a "Sign in to confirm you're not a bot" error (common on YouTube), pass browser cookies:
+- CLI: add `--cookies-from-browser chrome` (or `firefox`, `safari`, `edge`, `brave`, …) to `audio`, `download`, or clip commands.
+- Web UI: pick your browser under **Options → Cookies from Browser**.
 
 ## Install (recommended, no publishing)
 

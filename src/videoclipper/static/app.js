@@ -24,6 +24,7 @@ const qualitySelect = document.getElementById('qualitySelect');
 const customHeight = document.getElementById('customHeight');
 const formatSelect = document.getElementById('formatSelect');
 const modeSelect = document.getElementById('modeSelect');
+const cookiesBrowserSelect = document.getElementById('cookiesBrowserSelect');
 
 const addClipBtn = document.getElementById('addClipBtn');
 const clipsContainer = document.getElementById('clipsContainer');
@@ -249,7 +250,12 @@ async function handleGetInfo() {
                 showError('Please enter a URL');
                 return;
             }
-            response = await fetch(`/api/info?url=${encodeURIComponent(url)}`);
+            const cookies = getCookiesFromBrowser();
+            let infoUrl = `/api/info?url=${encodeURIComponent(url)}`;
+            if (cookies) {
+                infoUrl += `&cookies_from_browser=${encodeURIComponent(cookies)}`;
+            }
+            response = await fetch(infoUrl);
         }
 
         const data = await response.json();
@@ -272,6 +278,10 @@ async function handleGetInfo() {
             button.textContent = 'Get Info';
         }
     }
+}
+
+function getCookiesFromBrowser() {
+    return cookiesBrowserSelect?.value?.trim() || '';
 }
 
 function getQualityHeight() {
@@ -337,7 +347,8 @@ async function handleGenerate() {
                 outdir: outdirInput.value.trim() || './clips',
                 quality_height: getQualityHeight(),
                 reencode: modeSelect.value === 'precise',
-                format: formatSelect.value
+                format: formatSelect.value,
+                cookies_from_browser: getCookiesFromBrowser()
             };
 
             ws.send(JSON.stringify({
@@ -428,7 +439,8 @@ async function handleDownloadAudio() {
             body: JSON.stringify({
                 url: url,
                 outdir: outdirInput.value.trim() || './audio',
-                format: audioFormat
+                format: audioFormat,
+                cookies_from_browser: getCookiesFromBrowser()
             })
         });
         
