@@ -84,19 +84,31 @@ def _validate_range(start: int, end: int) -> None:
         raise ClipperError("Clip end must be greater than start.")
 
 
+_FFMPEG_HINT = (
+    "ffmpeg is a system tool and cannot be installed with pip. "
+    "Install it with `brew install ffmpeg` (macOS), "
+    "`sudo apt install ffmpeg` (Debian/Ubuntu), or see https://ffmpeg.org/download.html."
+)
+
+
 def _ensure_ffmpeg() -> None:
     if shutil.which("ffmpeg") is None:
-        raise ClipperError("Missing dependency on PATH: ffmpeg.")
+        raise ClipperError(f"Missing dependency on PATH: ffmpeg. {_FFMPEG_HINT}")
 
 
 def _ensure_ffprobe() -> None:
     if shutil.which("ffprobe") is None:
-        raise ClipperError("Missing dependency on PATH: ffprobe.")
+        # ffprobe ships with ffmpeg, so the install instructions are the same.
+        raise ClipperError(f"Missing dependency on PATH: ffprobe. {_FFMPEG_HINT}")
 
 
 def _ensure_yt_dlp() -> None:
     if shutil.which("yt-dlp") is None:
-        raise ClipperError("Missing dependency on PATH: yt-dlp.")
+        raise ClipperError(
+            "Missing dependency on PATH: yt-dlp. Reinstall videoclipper "
+            "(`pip install -e .`) or install it directly with "
+            "`pipx install yt-dlp` / `pip install yt-dlp`."
+        )
 
 
 def _cookie_args(cookies_from_browser: str | None) -> list[str]:
