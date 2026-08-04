@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -27,6 +28,8 @@ from .clipper import (
     parse_clip_ranges,
     parse_time,
 )
+
+logger = logging.getLogger("videoclipper.web")
 
 # In-memory job tracking
 jobs: dict[str, dict[str, Any]] = {}
@@ -523,10 +526,21 @@ async def _process_clip_job(
             )
 
     except ClipperError as exc:
-        jobs[job_id] = {"status": "error", "error": str(exc)}
+        await _fail_job(websocket, job_id, str(exc))
+    except Exception as exc:  # noqa: BLE001 - surface any failure to the UI
+        logger.exception("Clip job %s failed", job_id)
+        await _fail_job(websocket, job_id, f"Unexpected error: {exc}")
+
+
+async def _fail_job(websocket: WebSocket, job_id: str, error: str) -> None:
+    """Record a job failure and notify the client, tolerating a closed socket."""
+    jobs[job_id] = {"status": "error", "error": error}
+    try:
         await websocket.send_json(
-            {"type": "error", "job_id": job_id, "error": str(exc)}
+            {"type": "error", "job_id": job_id, "error": error}
         )
+    except Exception:  # noqa: BLE001 - client may have disconnected
+        logger.debug("Could not send error for job %s; client gone", job_id)
 
 
 def _default_html() -> str:
