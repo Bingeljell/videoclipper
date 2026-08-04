@@ -470,6 +470,7 @@ async def _process_clip_job(
         await send_progress("downloading", 10, "Downloading video...")
         from tempfile import TemporaryDirectory
 
+        outdir.mkdir(parents=True, exist_ok=True)
         with TemporaryDirectory(prefix="videoclipper_", dir=outdir) as tmp:
             workdir = Path(tmp)
             from .clipper import _inspect_formats, _available_heights, _clip_base_name
