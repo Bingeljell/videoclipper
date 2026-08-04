@@ -34,6 +34,7 @@ const browseBtn = document.getElementById('browseBtn');
 const prefixInput = document.getElementById('prefixInput');
 
 const generateBtn = document.getElementById('generateBtn');
+const downloadVideoBtn = document.getElementById('downloadVideoBtn');
 const downloadAudioBtn = document.getElementById('downloadAudioBtn');
 const audioFormatSelect = document.getElementById('audioFormatSelect');
 const progressContainer = document.getElementById('progressContainer');
@@ -91,6 +92,7 @@ function setupEventListeners() {
     }
     addClipBtn.addEventListener('click', addClipRow);
     generateBtn.addEventListener('click', handleGenerate);
+    downloadVideoBtn.addEventListener('click', handleDownloadVideo);
     downloadAudioBtn.addEventListener('click', handleDownloadAudio);
     browseBtn.addEventListener('click', handleBrowse);
     
@@ -399,6 +401,54 @@ async function handleGenerateLocal(clips) {
         } else {
             failTask(data.error || 'Failed to generate clips');
             showError(data.error || 'Failed to generate clips');
+        }
+    } catch (err) {
+        failTask('Network error');
+        showError('Network error: ' + err.message);
+    } finally {
+        resetButtons();
+    }
+}
+
+async function handleDownloadVideo() {
+    if (getSourceType() === 'local') {
+        showError('Video download is only available for URL sources');
+        return;
+    }
+    const url = urlInput.value.trim();
+    if (!url) {
+        showError('Please enter a URL');
+        return;
+    }
+
+    // Reset UI
+    resultsSection.classList.add('hidden');
+    resultsList.innerHTML = '';
+    setButtonsDisabled(true);
+    downloadVideoBtn.textContent = 'Downloading...';
+    startTask('Downloading video...');
+
+    try {
+        const response = await fetch('/api/download', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                url: url,
+                outdir: outdirInput.value.trim() || './fullvideos',
+                quality_height: getQualityHeight(),
+                reencode: modeSelect.value === 'precise',
+                cookies_from_browser: getCookiesFromBrowser()
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            finishTask('Complete');
+            showResults([data.path]);
+        } else {
+            failTask(data.error || 'Failed to download video');
+            showError(data.error || 'Failed to download video');
         }
     } catch (err) {
         failTask('Network error');
@@ -745,12 +795,15 @@ function showResults(outputs) {
 
 function setButtonsDisabled(disabled) {
     generateBtn.disabled = disabled;
+    downloadVideoBtn.disabled = disabled;
     downloadAudioBtn.disabled = disabled;
 }
 
 function resetButtons() {
     generateBtn.disabled = false;
     generateBtn.textContent = '🎬 Generate Clips';
+    downloadVideoBtn.disabled = false;
+    downloadVideoBtn.textContent = '⬇️ Download Video';
     downloadAudioBtn.disabled = false;
     downloadAudioBtn.textContent = '🎵 Download Audio';
     if (ws) {
