@@ -63,6 +63,19 @@ def _add_quality_flags(parser: argparse.ArgumentParser) -> None:
     parser.set_defaults(quality_height=480)
 
 
+def _add_cookies_flag(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--cookies-from-browser",
+        dest="cookies_from_browser",
+        metavar="BROWSER",
+        default=None,
+        help=(
+            "Read cookies from a browser (e.g. chrome, firefox, safari, edge, brave) "
+            "to satisfy sign-in / bot checks (notably YouTube)."
+        ),
+    )
+
+
 def _build_clip_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="videoclipper",
@@ -96,6 +109,7 @@ def _build_clip_parser() -> argparse.ArgumentParser:
         default="mp4",
         help="Output container extension (default: mp4)",
     )
+    _add_cookies_flag(parser)
     return parser
 
 
@@ -146,6 +160,7 @@ def _build_download_parser() -> argparse.ArgumentParser:
         help="Allow non-H.264 sources for higher quality downloads.",
     )
     _add_quality_flags(parser)
+    _add_cookies_flag(parser)
     return parser
 
 
@@ -184,6 +199,7 @@ def _build_audio_parser() -> argparse.ArgumentParser:
         default="mp3",
         help="Output audio format (default: mp3)",
     )
+    _add_cookies_flag(parser)
     return parser
 
 
@@ -328,6 +344,7 @@ def main(argv: list[str] | None = None) -> int:
                 url=args.url,
                 outdir=Path(args.outdir).expanduser(),
                 output_format=args.format.strip().lstrip("."),
+                cookies_from_browser=args.cookies_from_browser,
             )
         except ClipperError as exc:
             print(f"error: {exc}", file=sys.stderr)
@@ -411,6 +428,7 @@ def main(argv: list[str] | None = None) -> int:
                 outdir=Path(args.outdir).expanduser(),
                 reencode=args.reencode,
                 quality_height=args.quality_height,
+                cookies_from_browser=args.cookies_from_browser,
             )
         except ClipperError as exc:
             print(f"error: {exc}", file=sys.stderr)
@@ -451,7 +469,9 @@ def main(argv: list[str] | None = None) -> int:
             if source_path.exists():
                 info = get_local_info(source_path)
             else:
-                info = get_info(args.url)
+                info = get_info(
+                    args.url, cookies_from_browser=args.cookies_from_browser
+                )
             title = info["title"] or "unknown"
             channel = info["channel"] or "unknown"
             video_id = info["video_id"] or "unknown"
@@ -498,6 +518,7 @@ def main(argv: list[str] | None = None) -> int:
                 reencode=args.reencode,
                 output_format=output_format,
                 quality_height=args.quality_height,
+                cookies_from_browser=args.cookies_from_browser,
             )
     except ClipperError as exc:
         print(f"error: {exc}", file=sys.stderr)

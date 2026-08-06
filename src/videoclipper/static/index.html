@@ -129,6 +129,22 @@
                                     <option value="flac">FLAC</option>
                                 </select>
                             </div>
+
+                            <div class="form-group">
+                                <label for="cookiesBrowserSelect">Cookies from Browser</label>
+                                <select id="cookiesBrowserSelect">
+                                    <option value="" selected>None</option>
+                                    <option value="chrome">Chrome</option>
+                                    <option value="firefox">Firefox</option>
+                                    <option value="safari">Safari</option>
+                                    <option value="edge">Edge</option>
+                                    <option value="brave">Brave</option>
+                                    <option value="chromium">Chromium</option>
+                                    <option value="opera">Opera</option>
+                                    <option value="vivaldi">Vivaldi</option>
+                                </select>
+                                <p class="help-text">Use if a URL fails with a sign-in / “not a bot” error (e.g. YouTube).</p>
+                            </div>
                         </div>
                     </section>
 
@@ -169,6 +185,7 @@
                     <section id="actions" class="subcard action-card">
                         <div class="action-buttons">
                             <button id="generateBtn" class="btn primary large">🎬 Generate Clips</button>
+                            <button id="downloadVideoBtn" class="btn secondary large">⬇️ Download Video</button>
                             <button id="downloadAudioBtn" class="btn secondary large">🎵 Download Audio</button>
                         </div>
                     </section>
@@ -302,6 +319,6 @@
         </footer>
     </div>
 
-    <script src="/static/app.js?v=20250205b"></script>
+    <script src="/static/app.js?v=20260804a"></script>
 </body>
 </html>

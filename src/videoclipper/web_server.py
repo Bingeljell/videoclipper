@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -27,6 +28,8 @@ from .clipper import (
     parse_clip_ranges,
     parse_time,
 )
+
+logger = logging.getLogger("videoclipper.web")
 
 # In-memory job tracking
 jobs: dict[str, dict[str, Any]] = {}
@@ -96,10 +99,10 @@ async def api_routes() -> dict:
 
 
 @app.get("/api/info")
-async def api_info(url: str) -> dict:
+async def api_info(url: str, cookies_from_browser: str | None = None) -> dict:
     """Get video metadata and available qualities."""
     try:
-        info = get_info(url)
+        info = get_info(url, cookies_from_browser=cookies_from_browser or None)
         return {"success": True, **info}
     except ClipperError as exc:
         return {"success": False, "error": str(exc)}
@@ -135,6 +138,7 @@ async def api_download(data: dict) -> dict:
     outdir = _resolve_outdir(data.get("outdir", str(BASE_DIR / "fullvideos")))
     quality_height = data.get("quality_height", 480)
     reencode = data.get("reencode", False)
+    cookies_from_browser = data.get("cookies_from_browser") or None
 
     try:
         output = download_url(
@@ -142,6 +146,7 @@ async def api_download(data: dict) -> dict:
             outdir=outdir,
             reencode=reencode,
             quality_height=quality_height,
+            cookies_from_browser=cookies_from_browser,
         )
         return {"success": True, "path": str(output)}
     except ClipperError as exc:
@@ -154,12 +159,14 @@ async def api_audio(data: dict) -> dict:
     url = data.get("url", "")
     outdir = _resolve_outdir(data.get("outdir", str(BASE_DIR / "audio")))
     output_format = data.get("format", "mp3").strip().lstrip(".") or "mp3"
+    cookies_from_browser = data.get("cookies_from_browser") or None
 
     try:
         output = download_audio(
             url=url,
             outdir=outdir,
             output_format=output_format,
+            cookies_from_browser=cookies_from_browser,
         )
         return {"success": True, "path": str(output)}
     except ClipperError as exc:
@@ -370,6 +377,7 @@ async def api_clip(data: dict) -> dict:
     quality_height = data.get("quality_height", 480)
     reencode = data.get("reencode", False)
     output_format = data.get("format", "mp4").strip().lstrip(".") or "mp4"
+    cookies_from_browser = data.get("cookies_from_browser") or None
 
     try:
         ranges = parse_clip_ranges(clips_str)
@@ -390,6 +398,7 @@ async def api_clip(data: dict) -> dict:
                 reencode=reencode,
                 output_format=output_format,
                 quality_height=quality_height,
+                cookies_from_browser=cookies_from_browser,
             )
         return {"success": True, "paths": [str(p) for p in outputs]}
     except ClipperError as exc:
@@ -441,6 +450,7 @@ async def _process_clip_job(
     quality_height = params.get("quality_height", 480)
     reencode = params.get("reencode", False)
     output_format = params.get("format", "mp4").strip().lstrip(".") or "mp4"
+    cookies_from_browser = params.get("cookies_from_browser") or None
 
     async def send_progress(status: str, progress: int, message: str) -> None:
         jobs[job_id] = {"status": status, "progress": progress, "message": message}
@@ -463,12 +473,13 @@ async def _process_clip_job(
         await send_progress("downloading", 10, "Downloading video...")
         from tempfile import TemporaryDirectory
 
+        outdir.mkdir(parents=True, exist_ok=True)
         with TemporaryDirectory(prefix="videoclipper_", dir=outdir) as tmp:
             workdir = Path(tmp)
             from .clipper import _inspect_formats, _available_heights, _clip_base_name
             from .clipper import _format_selector, _download_source
 
-            data = _inspect_formats(url)
+            data = _inspect_formats(url, cookies_from_browser=cookies_from_browser)
             h264_mp4, all_heights = _available_heights(data)
             available = all_heights if reencode else h264_mp4
 
@@ -480,7 +491,13 @@ async def _process_clip_job(
 
             format_selector, merge_format = _format_selector(quality_height, reencode)
             output_template = workdir / "source.%(ext)s"
-            source = _download_source(url, output_template, format_selector, merge_format)
+            source = _download_source(
+                url,
+                output_template,
+                format_selector,
+                merge_format,
+                cookies_from_browser=cookies_from_browser,
+            )
 
             await send_progress("processing", 50, f"Generating {len(ranges)} clip(s)...")
 
@@ -509,10 +526,21 @@ async def _process_clip_job(
             )
 
     except ClipperError as exc:
-        jobs[job_id] = {"status": "error", "error": str(exc)}
+        await _fail_job(websocket, job_id, str(exc))
+    except Exception as exc:  # noqa: BLE001 - surface any failure to the UI
+        logger.exception("Clip job %s failed", job_id)
+        await _fail_job(websocket, job_id, f"Unexpected error: {exc}")
+
+
+async def _fail_job(websocket: WebSocket, job_id: str, error: str) -> None:
+    """Record a job failure and notify the client, tolerating a closed socket."""
+    jobs[job_id] = {"status": "error", "error": error}
+    try:
         await websocket.send_json(
-            {"type": "error", "job_id": job_id, "error": str(exc)}
+            {"type": "error", "job_id": job_id, "error": error}
         )
+    except Exception:  # noqa: BLE001 - client may have disconnected
+        logger.debug("Could not send error for job %s; client gone", job_id)
 
 
 def _default_html() -> str:

@@ -84,19 +84,43 @@ def _validate_range(start: int, end: int) -> None:
         raise ClipperError("Clip end must be greater than start.")
 
 
+_FFMPEG_HINT = (
+    "ffmpeg is a system tool and cannot be installed with pip. "
+    "Install it with `brew install ffmpeg` (macOS), "
+    "`sudo apt install ffmpeg` (Debian/Ubuntu), or see https://ffmpeg.org/download.html."
+)
+
+
 def _ensure_ffmpeg() -> None:
     if shutil.which("ffmpeg") is None:
-        raise ClipperError("Missing dependency on PATH: ffmpeg.")
+        raise ClipperError(f"Missing dependency on PATH: ffmpeg. {_FFMPEG_HINT}")
 
 
 def _ensure_ffprobe() -> None:
     if shutil.which("ffprobe") is None:
-        raise ClipperError("Missing dependency on PATH: ffprobe.")
+        # ffprobe ships with ffmpeg, so the install instructions are the same.
+        raise ClipperError(f"Missing dependency on PATH: ffprobe. {_FFMPEG_HINT}")
 
 
 def _ensure_yt_dlp() -> None:
     if shutil.which("yt-dlp") is None:
-        raise ClipperError("Missing dependency on PATH: yt-dlp.")
+        raise ClipperError(
+            "Missing dependency on PATH: yt-dlp. Reinstall videoclipper "
+            "(`pip install -e .`) or install it directly with "
+            "`pipx install yt-dlp` / `pip install yt-dlp`."
+        )
+
+
+def _cookie_args(cookies_from_browser: str | None) -> list[str]:
+    """Build yt-dlp cookie arguments for the given browser (e.g. 'chrome').
+
+    Returns an empty list when no browser is requested. This lets yt-dlp read
+    live cookies from the browser to satisfy sites (notably YouTube) that
+    demand sign-in / bot verification.
+    """
+    if not cookies_from_browser:
+        return []
+    return ["--cookies-from-browser", cookies_from_browser.strip()]
 
 
 def _run_command(cmd: Iterable[str], error_message: str) -> None:
@@ -111,6 +135,7 @@ def _download_source(
     output_template: Path,
     format_selector: str,
     merge_output_format: str | None,
+    cookies_from_browser: str | None = None,
 ) -> Path:
     cmd = [
         "yt-dlp",
@@ -119,6 +144,7 @@ def _download_source(
         "-o",
         str(output_template),
         "--no-playlist",
+        *_cookie_args(cookies_from_browser),
     ]
     if merge_output_format:
         cmd.extend(["--merge-output-format", merge_output_format])
@@ -132,12 +158,13 @@ def _download_source(
     return candidates[0]
 
 
-def _inspect_formats(url: str) -> dict:
+def _inspect_formats(url: str, cookies_from_browser: str | None = None) -> dict:
     cmd = [
         "yt-dlp",
         "-J",
         "--no-warnings",
         "--no-playlist",
+        *_cookie_args(cookies_from_browser),
         url,
     ]
     try:
@@ -229,9 +256,9 @@ def _clip_base_name(data: dict) -> str:
     return "_".join(parts) or "clip"
 
 
-def get_info(url: str) -> dict:
+def get_info(url: str, cookies_from_browser: str | None = None) -> dict:
     _ensure_yt_dlp()
-    data = _inspect_formats(url)
+    data = _inspect_formats(url, cookies_from_browser=cookies_from_browser)
     h264_mp4, all_heights = _available_heights(data)
     duration = data.get("duration")
     return {
@@ -365,6 +392,7 @@ def clip_url(
     reencode: bool,
     output_format: str,
     quality_height: int,
+    cookies_from_browser: str | None = None,
 ) -> list[Path]:
     _ensure_ffmpeg()
     _ensure_yt_dlp()
@@ -376,7 +404,7 @@ def clip_url(
     outputs: list[Path] = []
     with tempfile.TemporaryDirectory(prefix="videoclipper_", dir=outdir) as tmp:
         workdir = Path(tmp)
-        data = _inspect_formats(url)
+        data = _inspect_formats(url, cookies_from_browser=cookies_from_browser)
         run_stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         h264_mp4, all_heights = _available_heights(data)
         base_name = _clip_base_name(data)
@@ -400,7 +428,13 @@ def clip_url(
             )
         format_selector, merge_format = _format_selector(quality_height, reencode)
         output_template = workdir / "source.%(ext)s"
-        source = _download_source(url, output_template, format_selector, merge_format)
+        source = _download_source(
+            url,
+            output_template,
+            format_selector,
+            merge_format,
+            cookies_from_browser=cookies_from_browser,
+        )
         if not reencode and source.suffix.lstrip(".") != output_format:
             raise ClipperError(
                 f"Source format '{source.suffix.lstrip('.')}' does not match "
@@ -421,6 +455,7 @@ def download_url(
     outdir: Path,
     reencode: bool,
     quality_height: int,
+    cookies_from_browser: str | None = None,
 ) -> Path:
     _ensure_yt_dlp()
     if quality_height <= 0:
@@ -428,7 +463,7 @@ def download_url(
 
     outdir.mkdir(parents=True, exist_ok=True)
 
-    data = _inspect_formats(url)
+    data = _inspect_formats(url, cookies_from_browser=cookies_from_browser)
     h264_mp4, all_heights = _available_heights(data)
     available = all_heights if reencode else h264_mp4
     if quality_height not in available:
@@ -455,7 +490,13 @@ def download_url(
     if list(outdir.glob(f"{base_name}.*")):
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         output_template = outdir / f"{base_name}_{stamp}.%(ext)s"
-    return _download_source(url, output_template, format_selector, merge_format)
+    return _download_source(
+        url,
+        output_template,
+        format_selector,
+        merge_format,
+        cookies_from_browser=cookies_from_browser,
+    )
 
 
 def _get_best_audio_format(data: dict) -> str:
@@ -515,6 +556,7 @@ def download_audio(
     url: str,
     outdir: Path,
     output_format: str = "mp3",
+    cookies_from_browser: str | None = None,
 ) -> Path:
     """Download audio from URL and convert to specified format (default: mp3).
     
@@ -527,7 +569,7 @@ def download_audio(
     outdir.mkdir(parents=True, exist_ok=True)
 
     # Get video info and find the worst quality format with both video and audio
-    data = _inspect_formats(url)
+    data = _inspect_formats(url, cookies_from_browser=cookies_from_browser)
     base_name = _audio_base_name(data)
     format_id = _get_best_audio_format(data)
     run_stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
@@ -545,6 +587,7 @@ def download_audio(
             "--no-playlist",
             "-o",
             str(temp_video),
+            *_cookie_args(cookies_from_browser),
             url,
         ]
         
